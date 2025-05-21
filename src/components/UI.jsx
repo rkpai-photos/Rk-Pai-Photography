@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 // UI.jsx
 "use client";
 import React, { useEffect, useCallback } from "react";

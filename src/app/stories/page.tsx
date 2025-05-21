@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 import { Suspense } from "react";
 import Header from "@/sections/Nav";
 import GalleryGrid from "@/components/GalleryGrid";

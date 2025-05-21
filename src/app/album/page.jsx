@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 "use client";
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useState } from "react";

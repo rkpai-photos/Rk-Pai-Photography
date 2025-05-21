@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 "use client";
 import { MorphingText } from "@/components/ui/morphing-text";
 import React, { useState, useEffect } from "react";

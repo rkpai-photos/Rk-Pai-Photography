@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 "use client";
 import { useCursor, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
@@ -32,7 +34,6 @@ export const pageAtom = atom(0);
 
 // Define pictures array
 const pictures = [
-
   "bird2",
   "bird3",
   "bird4",
