@@ -8,6 +8,8 @@ import SlideShow from "@/sections/SlideShow";
 import Footer from "@/sections/Footer";
 import { fetchPhotos } from "@/lib/photo"; // Changed from googleSheets to the main photo module
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   // Fetch photos from the updated fetchPhotos function that now uses Google Sheets
   const photos = await fetchPhotos();
