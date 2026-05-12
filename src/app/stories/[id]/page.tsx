@@ -7,9 +7,15 @@ import Header from "@/sections/Header";
 import TypeWriter from "./TypeWriter";
 import PhotoDetailClient from "./PhotoClinet";
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+// Next 16: `params` is a Promise — must be awaited.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   const photos = await fetchPhotos();
-  const photo = photos.find((p) => p.id === params.id);
+  const photo = photos.find((p) => p.id === id);
   return {
     title: photo ? `Rk Pai Stories - ${photo.alt}` : "Photo Not Found",
     description: photo?.story || "Photo details",
@@ -19,10 +25,11 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 export default async function PhotoDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const photos = await fetchPhotos();
-  const photo = photos.find((p) => p.id === params.id);
+  const photo = photos.find((p) => p.id === id);
 
   if (!photo) {
     return (
