@@ -1,15 +1,21 @@
 // One-time import: Google Sheet -> Convex (`photos` table, images into File Storage).
 //
+// Auth: the photo mutations require a signed-in admin (Convex Auth). For this
+// one-off script there's no browser session, so it uses the narrow MIGRATION_TOKEN
+// escape hatch baked into `generateUploadUrl` + `create` (see convex/photos.ts).
+//
 // Prereqs (run these first):
 //   1. npx convex dev          # provisions the deployment, generates convex/_generated, writes NEXT_PUBLIC_CONVEX_URL to .env.local
-//   2. npx convex env set ADMIN_SECRET <some-strong-value>
-//   3. add to .env.local:  ADMIN_SECRET=<same value>
-//      and keep the existing Google vars: GOOGLE_APPLICATION_CREDENTIALS (base64 JSON), GOOGLE_SHEET_ID, [GOOGLE_SHEET_RANGE]
+//   2. npx convex env set MIGRATION_TOKEN "$(openssl rand -hex 24)"   # a throwaway token, just for this import
+//   3. add to .env.local:  MIGRATION_TOKEN=<same value>
+//      and the Google vars: GOOGLE_APPLICATION_CREDENTIALS (base64 JSON), GOOGLE_SHEET_ID, [GOOGLE_SHEET_RANGE]
 //
 // Then:  npm run import:photos
 //
+// AFTER it succeeds:  npx convex env remove MIGRATION_TOKEN   (and delete it from .env.local)
+//   — that closes the escape hatch. You can also `pnpm remove googleapis` and delete this script.
+//
 // Safe to re-run: rows whose slug already exists in Convex are skipped.
-// After it succeeds you can: npm uninstall googleapis && delete this script.
 
 import { config as loadEnv } from "dotenv";
 import { google } from "googleapis";
@@ -20,7 +26,7 @@ loadEnv({ path: ".env.local" });
 loadEnv(); // .env fallback
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || process.env.CONVEX_URL;
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
+const MIGRATION_TOKEN = process.env.MIGRATION_TOKEN;
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_RANGE = process.env.GOOGLE_SHEET_RANGE || "Sheet1!A:H";
 const GOOGLE_CREDS_B64 = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -31,7 +37,7 @@ function die(msg) {
 }
 
 if (!CONVEX_URL) die("NEXT_PUBLIC_CONVEX_URL is not set — run `npx convex dev` first.");
-if (!ADMIN_SECRET) die("ADMIN_SECRET is not set in .env.local (must match `npx convex env set ADMIN_SECRET ...`).");
+if (!MIGRATION_TOKEN) die("MIGRATION_TOKEN is not set in .env.local (must match `npx convex env set MIGRATION_TOKEN ...`).");
 if (!GOOGLE_CREDS_B64) die("GOOGLE_APPLICATION_CREDENTIALS (base64 service-account JSON) is not set.");
 if (!SHEET_ID) die("GOOGLE_SHEET_ID is not set.");
 
@@ -58,7 +64,7 @@ async function uploadImage(client, imageUrl) {
   if (!res.ok) throw new Error(`fetch ${imageUrl} -> ${res.status}`);
   const contentType = res.headers.get("content-type") || "image/jpeg";
   const bytes = Buffer.from(await res.arrayBuffer());
-  const uploadUrl = await client.mutation(api.photos.generateUploadUrl, { adminSecret: ADMIN_SECRET });
+  const uploadUrl = await client.mutation(api.photos.generateUploadUrl, { migrationToken: MIGRATION_TOKEN });
   const up = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": contentType }, body: bytes });
   if (!up.ok) throw new Error(`upload -> ${up.status}`);
   const { storageId } = await up.json();
@@ -87,7 +93,7 @@ async function main() {
     try {
       const { storageId, contentType } = await uploadImage(client, imageUrl);
       await client.mutation(api.photos.create, {
-        adminSecret: ADMIN_SECRET,
+        migrationToken: MIGRATION_TOKEN,
         slug,
         alt: String(r.alt || "").trim(),
         width: parseInt(r.width, 10) || 0,

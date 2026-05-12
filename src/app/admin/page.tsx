@@ -3,17 +3,19 @@
 
 // Photo CRUD dashboard. Replaces editing the old Google Sheet by hand.
 //
-// Auth model: a shared secret stored as a Convex env var (ADMIN_SECRET). The
-// operator types it once; it's kept in localStorage and sent with every write.
-// Reads are public (the site is public anyway). This is deliberately lightweight
-// — if this ever needs real multi-user auth, swap in Convex Auth here.
+// Auth: Convex Auth (email + password). The middleware (middleware.ts) already
+// bounces unauthenticated visitors to /admin/login; the <Authenticated> guard
+// here is belt-and-braces. *Authorization* to actually write photos additionally
+// requires the signed-in email to be on the ADMIN_EMAILS allow-list on the
+// Convex deployment — if it isn't, the mutations throw "Not authorized" and that
+// surfaces in the error banner.
 
-import { FormEvent, useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-
-const SECRET_KEY = "rkpai_admin_secret";
 
 type PhotoRow = {
   _id: Id<"photos">;
@@ -53,91 +55,47 @@ function readImageMeta(file: File): Promise<{ width: number; height: number }> {
 }
 
 export default function AdminPage() {
-  const [secret, setSecret] = useState<string | null>(null);
-  const [secretInput, setSecretInput] = useState("");
-
-  useEffect(() => {
-    const stored = localStorage.getItem(SECRET_KEY);
-    if (stored) setSecret(stored);
-  }, []);
-
-  const isValid = useQuery(api.photos.verifyAdmin, secret ? { adminSecret: secret } : "skip");
-  const photos = useQuery(api.photos.list, {}) as PhotoRow[] | undefined;
-
-  // Bad/stale secret → clear it.
-  useEffect(() => {
-    if (secret && isValid === false) {
-      localStorage.removeItem(SECRET_KEY);
-      setSecret(null);
-      setSecretInput("");
-    }
-  }, [secret, isValid]);
-
-  if (!secret || isValid !== true) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-stone-200 p-4">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const v = secretInput.trim();
-            if (!v) return;
-            localStorage.setItem(SECRET_KEY, v);
-            setSecret(v);
-          }}
-          className="w-full max-w-sm bg-white border border-stone-300 rounded-2xl p-6 shadow-sm space-y-4"
-        >
-          <h1 className="text-xl font-semibold text-stone-900">Photo admin</h1>
-          <p className="text-sm text-stone-600">
-            Enter the admin secret (the <code>ADMIN_SECRET</code> set on the Convex deployment).
-          </p>
-          <input
-            type="password"
-            value={secretInput}
-            onChange={(e) => setSecretInput(e.target.value)}
-            placeholder="Admin secret"
-            className="w-full h-11 px-3 rounded-lg border border-stone-300 bg-stone-50 outline-none focus:border-stone-500"
-            autoFocus
-          />
-          {secret && isValid === false && (
-            <p className="text-sm text-red-600">That secret was rejected.</p>
-          )}
-          <button
-            type="submit"
-            className="w-full h-11 rounded-lg bg-stone-900 text-white font-medium hover:bg-stone-800"
-          >
-            Unlock
-          </button>
-        </form>
-      </main>
-    );
-  }
-
-  return <Dashboard secret={secret} photos={photos} onSignOut={() => {
-    localStorage.removeItem(SECRET_KEY);
-    setSecret(null);
-  }} />;
+  return (
+    <>
+      <AuthLoading>
+        <main className="min-h-screen flex items-center justify-center bg-stone-200 text-stone-500">
+          Loading…
+        </main>
+      </AuthLoading>
+      <Unauthenticated>
+        <main className="min-h-screen flex items-center justify-center bg-stone-200 p-4">
+          <div className="text-center space-y-3">
+            <p className="text-stone-700">You need to sign in to manage photos.</p>
+            <Link
+              href="/admin/login"
+              className="inline-block h-11 px-6 leading-[44px] rounded-lg bg-stone-900 text-white font-medium hover:bg-stone-800"
+            >
+              Go to sign in
+            </Link>
+          </div>
+        </main>
+      </Unauthenticated>
+      <Authenticated>
+        <Dashboard />
+      </Authenticated>
+    </>
+  );
 }
 
-function Dashboard({
-  secret,
-  photos,
-  onSignOut,
-}: {
-  secret: string;
-  photos: PhotoRow[] | undefined;
-  onSignOut: () => void;
-}) {
+function Dashboard() {
+  const { signOut } = useAuthActions();
   const generateUploadUrl = useMutation(api.photos.generateUploadUrl);
   const createPhoto = useMutation(api.photos.create);
   const updatePhoto = useMutation(api.photos.update);
   const removePhoto = useMutation(api.photos.remove);
+  const photos = useQuery(api.photos.list, {}) as PhotoRow[] | undefined;
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<Id<"photos"> | null>(null);
 
   async function uploadFile(file: File): Promise<Id<"_storage">> {
-    const uploadUrl = await generateUploadUrl({ adminSecret: secret });
+    const uploadUrl = await generateUploadUrl({});
     const res = await fetch(uploadUrl, {
       method: "POST",
       headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -163,7 +121,6 @@ function Dashboard({
       const meta = await readImageMeta(file);
       const imageId = await uploadFile(file);
       await createPhoto({
-        adminSecret: secret,
         slug: String(data.get("slug") || "").trim(),
         alt: String(data.get("alt") || "").trim(),
         story: String(data.get("story") || "").trim(),
@@ -202,7 +159,6 @@ function Dashboard({
         if (!data.get("height")) height = meta.height || p.height;
       }
       await updatePhoto({
-        adminSecret: secret,
         id: p._id,
         slug: String(data.get("slug") || "").trim() || undefined,
         alt: String(data.get("alt") || "").trim() || undefined,
@@ -228,7 +184,7 @@ function Dashboard({
     setBusy(true);
     setError(null);
     try {
-      await removePhoto({ adminSecret: secret, id: p._id });
+      await removePhoto({ id: p._id });
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
@@ -245,7 +201,10 @@ function Dashboard({
       <div className="max-w-4xl mx-auto space-y-8">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-stone-900">Photos</h1>
-          <button onClick={onSignOut} className="text-sm text-stone-600 underline hover:text-stone-900">
+          <button
+            onClick={() => signOut()}
+            className="text-sm text-stone-600 underline hover:text-stone-900"
+          >
             Sign out
           </button>
         </header>

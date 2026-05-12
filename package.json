@@ -11,8 +11,10 @@
     "import:photos": "node scripts/import-from-sheet.mjs"
   },
   "dependencies": {
+    "@auth/core": "0.37.0",
     "@aws-sdk/client-dynamodb": "^3.738.0",
     "@aws-sdk/lib-dynamodb": "^3.738.0",
+    "@convex-dev/auth": "^0.0.92",
     "@prisma/client": "^6.2.1",
     "@react-three/drei": "^9.120.5",
     "@react-three/fiber": "^8.17.10",

@@ -1,10 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
-// Single table that replaces the old Google Sheet. One row per photo.
-// `slug` is the public id used in the /stories/[slug] route (was the sheet's `id` column).
-// `imageId` references a file in Convex File Storage (was the sheet's `image_url`).
+// `authTables` adds the Convex Auth tables (users, authSessions, authAccounts, …)
+// — they back the /admin login. The `photos` table replaces the old Google Sheet:
+// one row per photo. `slug` is the public id used in /stories/[slug] (was the
+// sheet's `id`); `imageId` references a file in Convex File Storage (was `image_url`).
 export default defineSchema({
+  ...authTables,
   photos: defineTable({
     slug: v.string(),
     alt: v.string(),

@@ -1,27 +1,60 @@
 import { v } from "convex/values";
-import { query, mutation, QueryCtx } from "./_generated/server";
+import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc } from "./_generated/dataModel";
 
 // ---------------------------------------------------------------------------
-// Admin gate
+// Authorization
 // ---------------------------------------------------------------------------
-// Reads/queries are public (the site is public). Writes require a shared secret
-// stored as a Convex environment variable (`npx convex env set ADMIN_SECRET ...`).
-// The /admin page collects it from the operator and passes it with every mutation.
-function assertAdmin(secret: string) {
-  const expected = process.env.ADMIN_SECRET;
-  if (!expected) {
+// Reads (`list`, `getBySlug`) are public — the site is public.
+// Writes require a signed-in Convex Auth user whose email is on the
+// `ADMIN_EMAILS` allow-list (a comma-separated Convex env var, e.g.
+// `npx convex env set ADMIN_EMAILS "you@example.com"`). Being authenticated is
+// necessary but NOT sufficient — the email check is the actual gate, so a stray
+// signed-up account can't touch photos.
+async function assertAdmin(ctx: QueryCtx | MutationCtx): Promise<void> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Not authenticated");
+
+  const allow = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (allow.length === 0) {
     throw new Error(
-      "ADMIN_SECRET is not configured on the Convex deployment. Run: npx convex env set ADMIN_SECRET <value>",
+      "ADMIN_EMAILS is not configured on the Convex deployment. Run: npx convex env set ADMIN_EMAILS <your-email>",
     );
   }
-  if (secret !== expected) {
-    throw new Error("Unauthorized");
-  }
+
+  const user = await ctx.db.get(userId);
+  const email = (user as Doc<"users"> | null)?.email?.toLowerCase();
+  if (!email || !allow.includes(email)) throw new Error("Not authorized");
 }
 
-// Public-facing shape: storage ids are resolved to URLs so the frontend never
+// One-time migration escape hatch (used ONLY by scripts/import-from-sheet.mjs):
+// if a `migrationToken` is supplied and matches the `MIGRATION_TOKEN` Convex env
+// var, the call is allowed without a logged-in user. Set MIGRATION_TOKEN only
+// for the duration of the import, then `npx convex env remove MIGRATION_TOKEN`.
+// This is intentionally narrow — it only applies to `generateUploadUrl` and
+// `create`, never to `update`/`remove`/`reorder`.
+async function assertAdminOrMigration(
+  ctx: MutationCtx,
+  migrationToken?: string,
+): Promise<void> {
+  if (
+    migrationToken &&
+    process.env.MIGRATION_TOKEN &&
+    migrationToken === process.env.MIGRATION_TOKEN
+  ) {
+    return;
+  }
+  await assertAdmin(ctx);
+}
+
+// ---------------------------------------------------------------------------
+// Public-facing photo shape: storage ids resolved to URLs so the frontend never
 // has to think about Convex storage.
+// ---------------------------------------------------------------------------
 type PublicPhoto = Omit<Doc<"photos">, "imageId"> & { imageUrl: string | null };
 
 async function toPublic(ctx: QueryCtx, doc: Doc<"photos">): Promise<PublicPhoto> {
@@ -34,6 +67,8 @@ async function toPublic(ctx: QueryCtx, doc: Doc<"photos">): Promise<PublicPhoto>
 // ---------------------------------------------------------------------------
 
 // Replaces fetchFromGoogleSheet() / fetchPhotos(): every photo, ascending by `order`.
+// A portfolio's photo set is conceptually bounded; `.collect()` is the intended
+// behavior here (we render the whole gallery).
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -54,14 +89,6 @@ export const getBySlug = query({
   },
 });
 
-// Used by the /admin page to validate the secret before showing the dashboard.
-export const verifyAdmin = query({
-  args: { adminSecret: v.string() },
-  handler: async (_ctx, { adminSecret }) => {
-    return Boolean(process.env.ADMIN_SECRET) && adminSecret === process.env.ADMIN_SECRET;
-  },
-});
-
 // ---------------------------------------------------------------------------
 // Mutations (admin only)
 // ---------------------------------------------------------------------------
@@ -69,16 +96,15 @@ export const verifyAdmin = query({
 // Step 1 of an upload: the client POSTs the file bytes to the returned URL,
 // gets back a storageId, then calls `create` (or `update`) with it.
 export const generateUploadUrl = mutation({
-  args: { adminSecret: v.string() },
-  handler: async (ctx, { adminSecret }) => {
-    assertAdmin(adminSecret);
+  args: { migrationToken: v.optional(v.string()) },
+  handler: async (ctx, { migrationToken }) => {
+    await assertAdminOrMigration(ctx, migrationToken);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 export const create = mutation({
   args: {
-    adminSecret: v.string(),
     slug: v.string(),
     alt: v.string(),
     width: v.number(),
@@ -89,9 +115,10 @@ export const create = mutation({
     location: v.optional(v.string()),
     createdAt: v.optional(v.string()),
     order: v.optional(v.number()),
+    migrationToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    assertAdmin(args.adminSecret);
+    await assertAdminOrMigration(ctx, args.migrationToken);
 
     const existing = await ctx.db
       .query("photos")
@@ -122,7 +149,6 @@ export const create = mutation({
 
 export const update = mutation({
   args: {
-    adminSecret: v.string(),
     id: v.id("photos"),
     slug: v.optional(v.string()),
     alt: v.optional(v.string()),
@@ -136,8 +162,8 @@ export const update = mutation({
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    assertAdmin(args.adminSecret);
-    const { adminSecret: _s, id, ...patch } = args;
+    await assertAdmin(ctx);
+    const { id, ...patch } = args;
 
     const current = await ctx.db.get(id);
     if (!current) throw new Error("Photo not found");
@@ -166,9 +192,9 @@ export const update = mutation({
 });
 
 export const remove = mutation({
-  args: { adminSecret: v.string(), id: v.id("photos") },
-  handler: async (ctx, { adminSecret, id }) => {
-    assertAdmin(adminSecret);
+  args: { id: v.id("photos") },
+  handler: async (ctx, { id }) => {
+    await assertAdmin(ctx);
     const doc = await ctx.db.get(id);
     if (!doc) return;
     await ctx.storage.delete(doc.imageId);
@@ -178,9 +204,9 @@ export const remove = mutation({
 
 // Reorder helper for the admin UI (pass the full ordered list of photo ids).
 export const reorder = mutation({
-  args: { adminSecret: v.string(), orderedIds: v.array(v.id("photos")) },
-  handler: async (ctx, { adminSecret, orderedIds }) => {
-    assertAdmin(adminSecret);
+  args: { orderedIds: v.array(v.id("photos")) },
+  handler: async (ctx, { orderedIds }) => {
+    await assertAdmin(ctx);
     for (let i = 0; i < orderedIds.length; i++) {
       await ctx.db.patch(orderedIds[i], { order: i });
     }
