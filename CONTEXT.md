@@ -6,7 +6,7 @@
 
 - **Ask before you code when the ask is vague.** If the request is ambiguous, under-scoped, or could be read multiple ways, ask one focused clarifying question first. Guessing and redoing costs more than a round-trip.
 - **Security is non-negotiable — treat every change like it's going to production.**
-  - **Never put a secret in source code.** No API keys, tokens, passwords, connection strings, service-account JSON, or shared secrets — ever, not even "temporarily", not in comments, not in test files. Read them from environment variables (`process.env.*`) or the platform's secret store (`npx convex env set …`, hosting-provider env settings). `.env*.local` and `.env` are gitignored — keep it that way; never commit a real value. Provide `.env.example` with **empty** placeholders only.
+  - **Never put a secret in source code.** No API keys, tokens, passwords, connection strings, service-account JSON, or shared secrets — ever, not even "temporarily", not in comments, not in test files. Read them from environment variables (`process.env.*`) or the platform's secret store (`npx convex env set …`, hosting-provider env settings). `.env*.local` and `.env` are gitignored — keep it that way; never commit a real value. (This repo deliberately has **no `.env.example`** — the required env vars are documented in §5; don't re-add one.)
   - **Never expose a secret to the client.** Anything prefixed `NEXT_PUBLIC_` is shipped in the browser bundle and is public by definition — only non-sensitive config goes there. Secrets must stay server-side (Convex functions, Next.js server components / route handlers / server actions). Don't store secrets in `localStorage`/`sessionStorage`, don't pass them as client→server function arguments if a server-only path exists, don't put them in URLs, don't log them, don't echo them in error messages.
   - **Authorize on the server, with least privilege.** Validate inputs, check permissions in the Convex function / server route — never trust the client. Scope credentials to the minimum needed.
   - **If a change would weaken any of this, stop and flag it** rather than shipping it. Call out known security limitations explicitly (in the PR, the response, and the Conversation Log).
@@ -135,7 +135,7 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 
 **`convex/_generated/`** is created by `pnpm run convex` (`convex dev`). Until it exists, anything importing `convex/_generated/api` (`src/lib/photo.ts`, `src/app/admin/*`, `convex/photos.ts`, `convex/http.ts`, `scripts/import-from-sheet.mjs`) won't typecheck/build — so run `pnpm run convex` once before `pnpm run build`. (It's committed once generated.)
 
-**Env vars** (`.env.local`, not committed — see [.env.example](.env.example)):
+**Env vars** (`.env.local`, not committed — there is intentionally no `.env.example`; the full list is the table below):
 
 | Var | Where | Purpose |
 |---|---|---|

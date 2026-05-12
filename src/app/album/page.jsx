@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useState } from "react";
 import { Experience } from "../../components/Experience";
 import { UI } from "../../components/UI";
+import Header from "@/sections/Header";
 
 function App() {
   const [cameraPosition, setCameraPosition] = useState([-0.5, 1, 4]);
@@ -36,6 +37,7 @@ function App() {
         <div className="absolute inset-0 " />
       </div>
 
+      <Header />
       <UI />
 
       <div className="absolute inset-0">
