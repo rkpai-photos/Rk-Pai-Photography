@@ -5,6 +5,11 @@
 ## 0. Working style (applies every session)
 
 - **Ask before you code when the ask is vague.** If the request is ambiguous, under-scoped, or could be read multiple ways, ask one focused clarifying question first. Guessing and redoing costs more than a round-trip.
+- **Security is non-negotiable — treat every change like it's going to production.**
+  - **Never put a secret in source code.** No API keys, tokens, passwords, connection strings, service-account JSON, or shared secrets — ever, not even "temporarily", not in comments, not in test files. Read them from environment variables (`process.env.*`) or the platform's secret store (`npx convex env set …`, hosting-provider env settings). `.env*.local` and `.env` are gitignored — keep it that way; never commit a real value. Provide `.env.example` with **empty** placeholders only.
+  - **Never expose a secret to the client.** Anything prefixed `NEXT_PUBLIC_` is shipped in the browser bundle and is public by definition — only non-sensitive config goes there. Secrets must stay server-side (Convex functions, Next.js server components / route handlers / server actions). Don't store secrets in `localStorage`/`sessionStorage`, don't pass them as client→server function arguments if a server-only path exists, don't put them in URLs, don't log them, don't echo them in error messages.
+  - **Authorize on the server, with least privilege.** Validate inputs, check permissions in the Convex function / server route — never trust the client. Scope credentials to the minimum needed.
+  - **If a change would weaken any of this, stop and flag it** rather than shipping it. Call out known security limitations explicitly (in the PR, the response, and the Conversation Log).
 - **Commit after every major change.** After a meaningful feature, refactor, schema/data-source change, or any non-trivial fix, make a git commit with a clear message. Don't leave large changes uncommitted across sessions.
 - **Append a chat summary to this file.** After a substantial change or a notable session, add a concise entry to the **Conversation Log** (section 11) — what changed, why, and anything a future session would otherwise have to re-derive from code alone. Keep trivial fixes out of it.
 - **Never delete this file.** `CONTEXT.md` is the project's persistent memory. Update by appending; if it gets corrupted, restore from the last good version in git history.
@@ -164,7 +169,7 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 - Two lockfiles in the repo (`package-lock.json` and `pnpm-lock.yaml`) — use pnpm.
 - `prettier.config.js` uses CommonJS `module.exports` in an otherwise ESM-ish project — fine, just don't be surprised.
 - **`pnpm run build` fails until `pnpm run convex` has been run once** (it generates `convex/_generated/`, which `src/lib/photo.ts` and `src/app/admin/page.tsx` import). This is the expected state of the repo right after the migration commit — not a bug.
-- `/admin` is protected only by a shared secret in a Convex env var. Fine for a one-person portfolio site; swap in real auth if that ever changes.
+- **`/admin` auth is a known weak spot — harden before treating this as production.** The `ADMIN_SECRET` is correctly *stored* server-side (a Convex env var; **not** hardcoded, **not** `NEXT_PUBLIC_`), but the current flow has the operator type it in the browser, caches it in `localStorage`, and sends it as a plaintext argument to the public `verifyAdmin` query and the write mutations. Consequences: XSS could read it from `localStorage`; `verifyAdmin` is an unauthenticated, unthrottled endpoint (brute-forceable); the value transits in request bodies. Acceptable-ish for a single operator over HTTPS, **not** "strict production". Proper fix: move auth fully server-side — a Next.js server action / route handler validates the password against a server-only env var, issues a signed `httpOnly` `SameSite` session cookie, and performs the Convex writes server→server so the secret never reaches the browser; or adopt Convex Auth. Interim minimum: keep the secret out of `localStorage` (memory-only, re-prompt per session) and rate-limit `verifyAdmin`. Flagged for follow-up — see §11.
 
 ## 10. Dev Setup
 
@@ -190,6 +195,12 @@ Without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` catches 
 ## 11. Conversation Log — engineering decisions & session summaries
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
+
+### 2026-05-12 — Security rule added to §0; `/admin` auth weakness flagged
+
+- Added a hard "Security is non-negotiable" rule to §0: never put secrets in source, never expose secrets to the client (`NEXT_PUBLIC_*` is public), authorize server-side with least privilege, flag anything that weakens this. Triggered by review feedback on the Convex migration.
+- Clarified for the record: the migration does **not** hardcode any secret — `ADMIN_SECRET` is read from `process.env` in `convex/photos.ts` / the import script, and `.env.example` ships empty placeholders. (`SECRET_KEY = "rkpai_admin_secret"` in `src/app/admin/page.tsx` is just the `localStorage` *key name*, not a secret value.)
+- But the `/admin` auth *flow* is genuinely weak for strict production (secret typed in-browser → `localStorage` → sent as a plaintext arg to a public, unthrottled `verifyAdmin` query). Documented in §9 with the proper fix (server-side session via `httpOnly` cookie / Convex Auth) and an interim minimum (memory-only secret + rate limit). **Not yet implemented — open follow-up.**
 
 ### 2026-05-12 — Migrated the photo data source from Google Sheets to Convex (+ /admin CRUD, File Storage)
 
