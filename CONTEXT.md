@@ -61,6 +61,7 @@ convex/                Convex backend
   auth.ts              Convex Auth setup — `convexAuth({ providers: [Password] })`, exports auth/signIn/signOut/store/isAuthenticated
   auth.config.ts       JWT config (domain = CONVEX_SITE_URL, applicationID "convex")
   http.ts              `auth.addHttpRoutes(http)` — registers /.well-known/* (+ /api/auth/* if OAuth is added)
+  setup.ts             one-time `internalAction createAdmin({ email, password })` — bootstraps the admin account via `createAccount`. Run: `npx convex run setup:createAdmin '{"email":"...","password":"..."}'`
   tsconfig.json        Convex-functions tsconfig
   _generated/          (created by `pnpm run convex` — committed once it exists; the app imports `api`/`dataModel` from here)
 scripts/
@@ -154,7 +155,7 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 - **`/`** ([src/app/page.tsx](src/app/page.tsx)) — server component: `await fetchPhotos()`, then renders `Header → Hero → SlideShow (photos[0..10]) → About → Projects (photos[0..5] mapped to {id, src, alt, story, createdAt}) → Footer`. `Testimonials` is *not* included.
 - **`/stories`** ([src/app/stories/page.tsx](src/app/stories/page.tsx)) — `await fetchPhotos()` → `<Nav/>` + `<GalleryGrid photos={...}/>` inside `<Suspense>`. Empty-state branch when no photos.
 - **`/stories/[id]`** ([src/app/stories/[id]/page.tsx](src/app/stories/[id]/page.tsx)) — `fetchPhotos()` then `photos.find(p => p.id === params.id)` (could use `fetchPhotoBySlug` instead — same result). `generateMetadata` derives title/description from the photo. Renders the photo via `next/image` (using `photo.width`/`photo.height`), the `story` with quote styling, posted date, optional `location` (now a real `v.optional` field on the table; renders only if set). Uses `./TypeWriter` and `./PhotoClinet` (filename intentionally misspelled). 404-style fallback when not found.
-- **`/admin/login`** ([src/app/admin/login/page.tsx](src/app/admin/login/page.tsx)) — client; Convex Auth email + password sign-in (with a one-time "create account" toggle for first setup).
+- **`/admin/login`** ([src/app/admin/login/page.tsx](src/app/admin/login/page.tsx)) — client; Convex Auth email + password **sign-in only** (no self-service sign-up — admin account is bootstrapped via `npx convex run setup:createAdmin`). Password field has a show/hide (eye) toggle.
 - **`/admin`** ([src/app/admin/page.tsx](src/app/admin/page.tsx)) — client; `robots:noindex` ([src/app/admin/layout.tsx](src/app/admin/layout.tsx)). `middleware.ts` redirects here→`/admin/login` if unauthenticated; the page also `<Authenticated>`-gates. Signed in → list/add/edit/delete photos + Sign out. Add/edit reads image dimensions client-side, uploads to Convex storage, then calls `create`/`update`. Only emails on `ADMIN_EMAILS` can actually write — others see a "Not authorized" error. Not linked from the site nav.
 - **`/album`** ([src/app/album/page.jsx](src/app/album/page.jsx)) — client component; responsive `<Canvas>` camera; mounts `<UI/>` + `<Experience/>` (which mounts `<Book/>`). Pure 3D, does **not** touch Convex — book pages use the static `bird1–15.jpg` textures in `/public/textures` and the `pictures`/`pages` arrays hard-coded in [src/components/Book.jsx](src/components/Book.jsx).
 
@@ -181,7 +182,7 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 - `prettier.config.js` uses CommonJS `module.exports` in an otherwise ESM-ish project — fine, just don't be surprised.
 - **`pnpm run build` fails until `pnpm run convex` has been run once** (it generates `convex/_generated/`, which `src/lib/photo.ts`, `src/app/admin/*`, `convex/photos.ts` and `convex/http.ts` import). Expected for a fresh checkout — not a bug. Also: `npx @convex-dev/auth` must have set the Convex Auth env vars (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`) or the `/admin` login will fail at runtime (the build still passes).
 - **Everything renders dynamically now** (`ƒ`, not `○` static) — `ConvexAuthNextjsServerProvider` reads auth cookies in the root layout, and `middleware.ts` runs on all routes. That's the standard Convex Auth Next.js setup; for a portfolio site the perf cost is negligible (the photo pages were already `force-dynamic`). Don't "fix" by removing the provider/middleware.
-- **`/admin` auth (post-hardening):** now Convex Auth (email+password) + an `ADMIN_EMAILS` allow-list for write authorization — no app secret in the client. Residuals worth knowing: (a) the session JWT lives in `localStorage` by default (Convex Auth's standard; short-lived & revocable — switch to `storage: "inMemory"` on the server provider if you want); (b) the `migrationToken` escape hatch on `generateUploadUrl`/`create` is a real bypass — it only works while `MIGRATION_TOKEN` is set on the deployment, so **remove that env var right after the import**; (c) the Password provider technically allows account creation via `/admin/login` (the "create account" toggle) — harmless because `ADMIN_EMAILS` is the actual gate, but you can remove the toggle and/or add email verification to lock it down further. See §11.
+- **`/admin` auth (post-hardening):** now Convex Auth (email+password) + an `ADMIN_EMAILS` allow-list for write authorization — no app secret in the client. Self-service sign-up is disabled (no UI affordance, and `convex/auth.ts`'s `Password({ profile })` rejects `signUp` for any email not on `ADMIN_EMAILS`); the admin account is created via `npx convex run setup:createAdmin`. Residuals worth knowing: (a) the session JWT lives in `localStorage` by default (Convex Auth's standard; short-lived & revocable — switch to `storage: "inMemory"` on the server provider if you want); (b) the `migrationToken` escape hatch on `generateUploadUrl`/`create` is a real bypass — it only works while `MIGRATION_TOKEN` is set on the deployment, so **remove that env var right after the import**. See §11.
 
 ## 10. Dev Setup
 
@@ -193,11 +194,13 @@ pnpm approve-builds            # once — lets esbuild (Convex) / prisma run the
 pnpm run convex                # = convex dev — provisions the deployment, generates convex/_generated, writes NEXT_PUBLIC_CONVEX_URL + CONVEX_DEPLOYMENT into .env.local. Keep it running in dev.
 
 # 2) Convex Auth (one-time): generates + sets JWT keys and SITE_URL on the deployment:
-npx @convex-dev/auth          # when prompted, SITE_URL = http://localhost:3000 (use the prod URL in prod)
-npx convex env set ADMIN_EMAILS "you@example.com"   # who may write photos (comma-separated)
+npx @convex-dev/auth --web-server-url http://localhost:3000 --skip-git-check   # (use the prod URL + `--prod` for production)
+npx convex env set ADMIN_EMAILS "you@example.com"   # who may write photos / sign up (comma-separated)
+# create the admin account (password is an arg — not stored anywhere):
+npx convex run setup:createAdmin '{"email":"you@example.com","password":"<password>"}'
 
 # 3) Run it (second terminal):
-pnpm run dev                   # http://localhost:3000  →  /admin/login → "Create the admin account" once (use an email in ADMIN_EMAILS)
+pnpm run dev                   # http://localhost:3000  →  /admin/login → sign in
 
 # 4) (Optional) one-time data migration from the old Google Sheet — skip if starting fresh:
 npx convex env set MIGRATION_TOKEN "$(openssl rand -hex 24)"     # also add MIGRATION_TOKEN=<same> + GOOGLE_* vars to .env.local
@@ -210,6 +213,16 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 ## 11. Conversation Log — engineering decisions & session summaries
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
+
+### 2026-05-12 — Created the sole admin account; disabled sign-up; password show/hide toggle
+
+- **Admin account created:** `rkpai@gmail.com` (on the dev deployment `dependable-robin-568`), via a new one-time `internalAction` [convex/setup.ts](convex/setup.ts) `createAdmin({ email, password })` that calls `createAccount` from `@convex-dev/auth/server`. The password is an argument — never stored in source, env, or this doc. Run as `npx convex run setup:createAdmin '{"email":"...","password":"..."}'`. (Re-runs are safe — "already exists" is caught.)
+- **`ADMIN_EMAILS=rkpai@gmail.com`** set on the deployment — that single email is the only one allowed to write photos.
+- **Sign-up disabled two ways:** (1) [src/app/admin/login/page.tsx](src/app/admin/login/page.tsx) is sign-in-only now — the "create account" toggle/flow is gone; (2) server-side backstop in [convex/auth.ts](convex/auth.ts): `Password({ profile })` throws on `flow === "signUp"` unless the email is on `ADMIN_EMAILS`. `createAccount` (the setup path) bypasses that gate by design.
+- **Convex Auth env vars set on the deployment** via `npx @convex-dev/auth --web-server-url http://localhost:3000 --skip-git-check` (it detected the existing code files and only set vars — didn't clobber the customized `auth.ts`): `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL=http://localhost:3000`. **Production needs these set separately** (`SITE_URL` = the prod URL) — `npx @convex-dev/auth --prod`.
+- **Password field show/hide (eye) toggle** added to the login form (`lucide-react` `Eye`/`EyeOff` — already a dep).
+- *Note:* this configured the **dev** deployment. For prod: `npx convex env set ADMIN_EMAILS ...`, `npx @convex-dev/auth --prod`, and run `setup:createAdmin` against prod (`npx convex run --prod setup:createAdmin '{...}'`).
+- *Heads-up for the next session:* a `pnpm run build` was started here and OOM-killed mid-run after `rm -rf .next`, which can leave a half-written `.next/` under a running `pnpm run dev` → "weird errors / can't sign in" until `pnpm run dev` is restarted. Don't run `pnpm run build` while `next dev` is up.
 
 ### 2026-05-12 — Hardened `/admin` auth: replaced the shared-secret flow with Convex Auth
 
@@ -227,7 +240,7 @@ Follow-up to the two entries below — the "shared secret typed in the browser" 
   - *Session JWT in `localStorage`:* `ConvexAuthNextjsProvider` defaults to `storage: "localStorage"`. That's a short-lived, revocable JWT (not a password) and the standard setup; httpOnly cookies are used server-side by the middleware. `storage: "inMemory"` is available if wanted (costs cross-tab sync + survives-refresh). Left at the default.
   - *Everything is now `ƒ` (dynamic):* the server auth provider reads cookies in the root layout + middleware runs everywhere → no static prerendering. Negligible for this site; the photo pages were `force-dynamic` anyway.
 - **Status:** code-complete, `pnpm run build` clean (lint clean except the pre-existing `typewriter-effect.tsx` warning). **Not verified end-to-end** — couldn't run the auth flow here. Before it works: run `npx @convex-dev/auth` (sets `JWT_PRIVATE_KEY`/`JWKS`/`SITE_URL` on the deployment), `npx convex env set ADMIN_EMAILS ...`, then create the admin account at `/admin/login`. `convex/_generated/` was regenerated against the new schema/functions (a `convex dev` appears to be running in this environment).
-- **Open follow-ups:** disable the `/admin/login` "create account" toggle (and/or add email verification) once the admin account exists; remove `MIGRATION_TOKEN` after the data import; consider `storage: "inMemory"` if the `localStorage` JWT bothers you; admin reorder UI (the `reorder` mutation has no UI yet).
+- **Open follow-ups:** remove `MIGRATION_TOKEN` after the data import; consider `storage: "inMemory"` if the `localStorage` JWT bothers you; consider email verification on the Password provider; admin reorder UI (the `reorder` mutation has no UI yet). *(Sign-up has since been disabled and the admin account created — see the entry above.)*
 
 ### 2026-05-12 — Security rule added to §0; `/admin` auth weakness flagged
 

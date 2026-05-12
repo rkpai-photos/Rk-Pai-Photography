@@ -1,20 +1,22 @@
 "use client";
 
-// Convex Auth sign-in for /admin. Email + password.
-// The admin account is created once via the "create account" flow; after that,
-// being able to *write photos* still requires the email to be on the
-// ADMIN_EMAILS allow-list on the Convex deployment (see convex/photos.ts).
+// Convex Auth sign-in for /admin. Email + password, sign-in only.
+// Self-service sign-up is intentionally not offered here, and the Password
+// provider in convex/auth.ts also rejects sign-up server-side for any email not
+// on the ADMIN_EMAILS allow-list. The admin account is created out-of-band:
+//   npx convex run setup:createAdmin '{"email":"...","password":"..."}'
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 
 export default function AdminLoginPage() {
   const { signIn } = useAuthActions();
   const router = useRouter();
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,15 +27,11 @@ export default function AdminLoginPage() {
       await signIn("password", {
         email: String(data.get("email") || "").trim(),
         password: String(data.get("password") || ""),
-        flow: mode,
+        flow: "signIn",
       });
       router.push("/admin");
     } catch {
-      setError(
-        mode === "signIn"
-          ? "Sign-in failed — check the email and password."
-          : "Couldn't create the account (it may already exist, or the password is too weak).",
-      );
+      setError("Sign-in failed — check the email and password.");
     } finally {
       setBusy(false);
     }
@@ -46,11 +44,7 @@ export default function AdminLoginPage() {
         className="w-full max-w-sm bg-white border border-stone-300 rounded-2xl p-6 shadow-sm space-y-4"
       >
         <h1 className="text-xl font-semibold text-stone-900">Photo admin</h1>
-        <p className="text-sm text-stone-600">
-          {mode === "signIn"
-            ? "Sign in to manage photos."
-            : "Create the admin account (one-time setup)."}
-        </p>
+        <p className="text-sm text-stone-600">Sign in to manage photos.</p>
         <input
           name="email"
           type="email"
@@ -60,31 +54,32 @@ export default function AdminLoginPage() {
           autoFocus
           className="w-full h-11 px-3 rounded-lg border border-stone-300 bg-stone-50 outline-none focus:border-stone-500"
         />
-        <input
-          name="password"
-          type="password"
-          required
-          placeholder="Password"
-          autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-          className="w-full h-11 px-3 rounded-lg border border-stone-300 bg-stone-50 outline-none focus:border-stone-500"
-        />
+        <div className="relative">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            required
+            placeholder="Password"
+            autoComplete="current-password"
+            className="w-full h-11 pl-3 pr-11 rounded-lg border border-stone-300 bg-stone-50 outline-none focus:border-stone-500"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            title={showPassword ? "Hide password" : "Show password"}
+            className="absolute inset-y-0 right-0 px-3 flex items-center text-stone-400 hover:text-stone-700"
+          >
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
           disabled={busy}
           className="w-full h-11 rounded-lg bg-stone-900 text-white font-medium hover:bg-stone-800 disabled:opacity-50"
         >
-          {busy ? "…" : mode === "signIn" ? "Sign in" : "Create account"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === "signIn" ? "signUp" : "signIn");
-            setError(null);
-          }}
-          className="w-full text-sm text-stone-500 underline hover:text-stone-700"
-        >
-          {mode === "signIn" ? "First time? Create the admin account" : "Have an account? Sign in"}
+          {busy ? "…" : "Sign in"}
         </button>
       </form>
     </main>
