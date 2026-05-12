@@ -11,9 +11,38 @@ export default function PhotoDetailClient({
   initialCreatedAt,
 }: PhotoDetailClientProps) {
   const [isLiked, setIsLiked] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleLikeToggle = () => {
     setIsLiked(!isLiked);
+  };
+
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable (e.g. insecure context) — nothing more to do */
+    }
+  };
+
+  const handleShare = async () => {
+    if (typeof window === "undefined") return;
+    const url = window.location.href;
+    const title = document.title || "RK Pai Photography";
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch (err) {
+        // User dismissed the native share sheet → do nothing. Anything else → copy.
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          await copyLink(url);
+        }
+      }
+    } else {
+      await copyLink(url);
+    }
   };
 
   return (
@@ -40,10 +69,23 @@ export default function PhotoDetailClient({
               strokeWidth={1.5}
               fill={isLiked ? "currentColor" : "none"}
             />
-            <Share2
-              className="w-5 h-5 text-gray-600 dark:text-gray-300 hover:text-blue-500 cursor-pointer transition-colors"
-              strokeWidth={1.5}
-            />
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share this photo"
+              title="Share"
+              className="relative inline-flex items-center"
+            >
+              <Share2
+                className="w-5 h-5 text-gray-600 dark:text-gray-300 hover:text-blue-500 cursor-pointer transition-colors"
+                strokeWidth={1.5}
+              />
+              {copied && (
+                <span className="absolute -top-8 right-0 text-xs bg-gray-800 text-white px-2 py-1 rounded shadow whitespace-nowrap">
+                  Link copied
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>

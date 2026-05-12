@@ -32,8 +32,8 @@ function App() {
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-slate-800">
+    <div className="relative min-h-screen overflow-hidden bg-stone-200">
+      <div className="absolute inset-0 bg-stone-200">
         <div className="absolute inset-0 " />
       </div>
 

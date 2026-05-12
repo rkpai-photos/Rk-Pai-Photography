@@ -85,7 +85,7 @@ src/
       page.jsx         "/album" — R3F <Canvas> mounting <Experience/> + <UI/> overlay; "use client"
   sections/            Page-section components composed by routes
     Header.tsx         Main site nav (About / Gallery / Albums / Recent Stories / Contact mailto)
-    Nav.tsx            Minimal nav (logo + home button) used on /stories
+    Nav.tsx            Minimal nav (logo + home button) — now UNUSED (all public pages use Header.tsx); kept, not deleted
     Hero.tsx           Landing hero — GSAP scroll-scrub image zoom + WordPullUp
     About.tsx          About section — animated decorative SVG + photo
     SlideShow.tsx      Landing "PortfolioGrid" — MorphingText + a hard-coded grid of /images/birdN.jpg
@@ -153,11 +153,11 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 ## 6. Routes & Data Flow
 
 - **`/`** ([src/app/page.tsx](src/app/page.tsx)) — server component: `await fetchPhotos()`, then renders `Header → Hero → SlideShow (photos[0..10]) → About → Projects (photos[0..5] mapped to {id, src, alt, story, createdAt}) → Footer`. `Testimonials` is *not* included.
-- **`/stories`** ([src/app/stories/page.tsx](src/app/stories/page.tsx)) — `await fetchPhotos()` → `<Nav/>` + `<GalleryGrid photos={...}/>` inside `<Suspense>`. Empty-state branch when no photos.
-- **`/stories/[id]`** ([src/app/stories/[id]/page.tsx](src/app/stories/[id]/page.tsx)) — `fetchPhotos()` then `photos.find(p => p.id === params.id)` (could use `fetchPhotoBySlug` instead — same result). `generateMetadata` derives title/description from the photo. Renders the photo via `next/image` (using `photo.width`/`photo.height`), the `story` with quote styling, posted date, optional `location` (now a real `v.optional` field on the table; renders only if set). Uses `./TypeWriter` and `./PhotoClinet` (filename intentionally misspelled). 404-style fallback when not found.
+- **`/stories`** ([src/app/stories/page.tsx](src/app/stories/page.tsx)) — `await fetchPhotos()` → `<Header/>` (the shared one) + `<GalleryGrid photos={...}/>` inside `<Suspense>`. Empty-state branch when no photos.
+- **`/stories/[id]`** ([src/app/stories/[id]/page.tsx](src/app/stories/[id]/page.tsx)) — `fetchPhotos()` then `photos.find(p => p.id === params.id)` (could use `fetchPhotoBySlug` instead — same result). `generateMetadata` derives title/description from the photo. Renders `<Header/>` + the photo via `next/image` (using `photo.width`/`photo.height`), the `story` with quote styling, posted date, optional `location` (a real `v.optional` field; renders only if set), and a like + **share** button ([./PhotoClinet.tsx](src/app/stories/[id]/PhotoClinet.tsx) — `PhotoDetailClient`; the share button uses `navigator.share` with a copy-link + "Link copied" fallback). Uses `./TypeWriter`. 404-style fallback (also has `<Header/>`) when not found.
 - **`/admin/login`** ([src/app/admin/login/page.tsx](src/app/admin/login/page.tsx)) — client; Convex Auth email + password **sign-in only** (no self-service sign-up — admin account is bootstrapped via `npx convex run setup:createAdmin`). Password field has a show/hide (eye) toggle.
 - **`/admin`** ([src/app/admin/page.tsx](src/app/admin/page.tsx)) — client; `robots:noindex` ([src/app/admin/layout.tsx](src/app/admin/layout.tsx)). `middleware.ts` redirects here→`/admin/login` if unauthenticated; the page also `<Authenticated>`-gates. Signed in → list/add/edit/delete photos + Sign out. Add/edit reads image dimensions client-side, uploads to Convex storage, then calls `create`/`update`. Only emails on `ADMIN_EMAILS` can actually write — others see a "Not authorized" error. Not linked from the site nav.
-- **`/album`** ([src/app/album/page.jsx](src/app/album/page.jsx)) — client component; responsive `<Canvas>` camera; mounts `<UI/>` + `<Experience/>` (which mounts `<Book/>`). Pure 3D, does **not** touch Convex — book pages use the static `bird1–15.jpg` textures in `/public/textures` and the `pictures`/`pages` arrays hard-coded in [src/components/Book.jsx](src/components/Book.jsx).
+- **`/album`** ([src/app/album/page.jsx](src/app/album/page.jsx)) — client component; renders `<Header/>` over a responsive `<Canvas>` (camera per breakpoint) plus the `<UI/>` book-control overlay; the canvas mounts `<Experience/>` → `<Book/>`. Pure 3D, does **not** touch Convex — book pages use the static `bird1–15.jpg` textures in `/public/textures` and the `pictures`/`pages` arrays hard-coded in [src/components/Book.jsx](src/components/Book.jsx). (`UI.jsx` previously had its own "Wildlife Photography" title overlay; that was removed once the shared `<Header/>` landed here.)
 
 ## 7. `next.config.mjs` — remote images
 
@@ -213,6 +213,12 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 ## 11. Conversation Log — engineering decisions & session summaries
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
+
+### 2026-05-12 — Unified the site header; wired the photo-detail share button; dropped .env.example
+
+- **One header everywhere (public pages):** `/stories`, `/stories/[id]` (incl. the not-found state), and `/album` now render the same `<Header/>` from [src/sections/Header.tsx](src/sections/Header.tsx) that the home page uses. `/stories` had been using the minimal [src/sections/Nav.tsx](src/sections/Nav.tsx) (now unused, kept). `/admin*` keeps its own bare layout deliberately. `<Header/>` is `fixed top-0`, so the pages that gained it got top padding (`pt-28`/`pt-32`/`pt-36`) to clear it. On `/album` the header renders over the 3D `<Canvas>` alongside the existing `<UI/>` book-control overlay; the dark slate background was swapped for the site's `bg-stone-200`, and the user removed `UI.jsx`'s old "Wildlife Photography" title overlay since the header now covers that role.
+- **Share button on `/stories/[id]`:** the previously-decorative `<Share2>` icon in [PhotoClinet.tsx](src/app/stories/[id]/PhotoClinet.tsx) is now a real button — `navigator.share({ title: document.title, url: location.href })` on browsers that support it, otherwise copy the URL to the clipboard and show a transient "Link copied" badge. User-dismissed native-share (`AbortError`) is swallowed. Scope was intentionally limited to the detail page (the gallery cards were left alone).
+- **Removed `.env.example`** from the repo per the user — env vars are documented in §5 instead. CONTEXT §0 now says not to re-add one.
 
 ### 2026-05-12 — Created the sole admin account; disabled sign-up; password show/hide toggle
 
