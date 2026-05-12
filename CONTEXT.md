@@ -54,7 +54,6 @@ No test suite exists. Both `package-lock.json` and `pnpm-lock.yaml` are present 
 ## 4. Directory Layout
 
 ```
-middleware.ts          Convex Auth Next.js middleware — bounces unauthenticated visitors away from /admin (except /admin/login), proxies /api/auth/*
 convex/                Convex backend
   schema.ts            `...authTables` (Convex Auth: users, authSessions, …) + `photos` table (slug, alt, width, height, story, imageId -> _storage, imageType, location?, createdAt, order) + by_slug / by_order indexes
   photos.ts            queries: list, getBySlug · mutations (auth-gated via assertAdmin → Convex Auth + ADMIN_EMAILS): generateUploadUrl, create, update, remove, reorder. `generateUploadUrl`+`create` also accept a one-time `migrationToken` (for the import script).
@@ -67,6 +66,7 @@ convex/                Convex backend
 scripts/
   import-from-sheet.mjs  one-time: read the old Google Sheet -> upload images to Convex storage -> insert `photos` rows (via the migrationToken hatch). Re-runnable (skips existing slugs).
 src/
+  middleware.ts        Convex Auth Next.js middleware — gates /admin* → /admin/login, proxies /api/auth/*. (MUST be `src/middleware.ts`, not repo root, because this project uses a `src/` dir — Next.js ignores a root-level one here.)
   app/                 Next.js App Router
     layout.tsx         Root layout — Archivo font, <body> = bg-stone-200 / text-stone-900; wraps in <ConvexAuthNextjsServerProvider> → <ConvexClientProvider>
     globals.css        Tailwind layers + shadcn CSS vars + Poppins import + .fade-to-transparent util
@@ -74,7 +74,7 @@ src/
     admin/
       layout.tsx       robots:noindex metadata for the /admin route
       page.tsx         "/admin" — photo CRUD dashboard (client; <Authenticated> gate -> list/add/edit/delete; uploads to Convex storage; Sign out)
-      login/page.tsx   "/admin/login" — Convex Auth email+password sign-in (and one-time "create account")
+      login/page.tsx   "/admin/login" — Convex Auth email+password sign-in only; password show/hide toggle
     stories/
       page.tsx         "/stories" — masonry gallery of all photos (force-dynamic)
       [id]/
@@ -127,7 +127,7 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 - `list` (query) — all photos, ascending by `order`, with `imageId` resolved to `imageUrl` via `ctx.storage.getUrl`. Public. Replaces the old `fetchFromGoogleSheet()`. (`.collect()` is intentional — a portfolio's photo set is bounded and the gallery renders all of it.)
 - `getBySlug` (query) — one photo by slug, url resolved. Public. (Used by `fetchPhotoBySlug`; the `/stories/[id]` page currently still does `fetchPhotos().find(...)`, which also works.)
 - `generateUploadUrl` / `create` / `update` / `remove` / `reorder` (mutations) — gated by `assertAdmin(ctx)`: requires a Convex Auth session (`getAuthUserId`) **and** the user's email to be on the `ADMIN_EMAILS` allow-list (comma-separated Convex env var). Being signed in is necessary but not sufficient. `update`/`remove` also `ctx.storage.delete` the old/removed file. `generateUploadUrl`+`create` additionally accept an optional `migrationToken` matched against `process.env.MIGRATION_TOKEN` — a deliberately narrow, time-boxed escape hatch used **only** by the one-time import script (set `MIGRATION_TOKEN` for the import, then `npx convex env remove MIGRATION_TOKEN`).
-- **Auth backend:** [convex/auth.ts](convex/auth.ts) (`convexAuth({ providers: [Password] })`), [convex/auth.config.ts](convex/auth.config.ts) (JWT config), [convex/http.ts](convex/http.ts) (`auth.addHttpRoutes`), and `...authTables` spread into [convex/schema.ts](convex/schema.ts). [middleware.ts](middleware.ts) redirects unauthenticated visitors from `/admin*` to `/admin/login` and (when signed in) away from `/admin/login`.
+- **Auth backend:** [convex/auth.ts](convex/auth.ts) (`convexAuth({ providers: [Password] })`), [convex/auth.config.ts](convex/auth.config.ts) (JWT config), [convex/http.ts](convex/http.ts) (`auth.addHttpRoutes`), and `...authTables` spread into [convex/schema.ts](convex/schema.ts). [src/middleware.ts](src/middleware.ts) redirects unauthenticated visitors from `/admin*` to `/admin/login` and (when signed in) away from `/admin/login`.
 
 **Frontend reads:**
 - Server components (`/`, `/stories`, `/stories/[id]`) use `fetchQuery(api.photos.list, {})` from `convex/nextjs` via [src/lib/photo.ts](src/lib/photo.ts), which maps the rows to the same `Photo` shape components already consumed (`id`/`src`/`image_url`/`width`/`height`/`story`/`createdAt`/`created_at`/`imageType`/`image_type`/`location?`). On any error it logs and returns `[]`/`null`.
@@ -222,7 +222,8 @@ Reverse-chronological. Each entry = the reason-to-exist for some change, or a su
 - **Convex Auth env vars set on the deployment** via `npx @convex-dev/auth --web-server-url http://localhost:3000 --skip-git-check` (it detected the existing code files and only set vars — didn't clobber the customized `auth.ts`): `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL=http://localhost:3000`. **Production needs these set separately** (`SITE_URL` = the prod URL) — `npx @convex-dev/auth --prod`.
 - **Password field show/hide (eye) toggle** added to the login form (`lucide-react` `Eye`/`EyeOff` — already a dep).
 - *Note:* this configured the **dev** deployment. For prod: `npx convex env set ADMIN_EMAILS ...`, `npx @convex-dev/auth --prod`, and run `setup:createAdmin` against prod (`npx convex run --prod setup:createAdmin '{...}'`).
-- *Heads-up for the next session:* a `pnpm run build` was started here and OOM-killed mid-run after `rm -rf .next`, which can leave a half-written `.next/` under a running `pnpm run dev` → "weird errors / can't sign in" until `pnpm run dev` is restarted. Don't run `pnpm run build` while `next dev` is up.
+- *Bug fixed:* `middleware.ts` was initially placed at the repo root, but this project uses a `src/` dir, so Next.js looks for `src/middleware.ts` and silently ignored the root one — `/admin` wasn't gated and `POST /api/auth` 404'd, so the browser sign-in failed even though `auth:signIn` worked fine when called directly. Moved to `src/middleware.ts`.
+- *Heads-up for the next session:* a `pnpm run build` was started here and OOM-killed mid-run after `rm -rf .next`, which can leave a half-written `.next/` under a running `pnpm run dev` → "weird errors" until `pnpm run dev` is restarted. Don't run `pnpm run build` while `next dev` is up.
 
 ### 2026-05-12 — Hardened `/admin` auth: replaced the shared-secret flow with Convex Auth
 
