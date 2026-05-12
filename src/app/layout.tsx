@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Archivo } from "next/font/google";
+import ConvexClientProvider from "@/components/ConvexClientProvider";
 
 const archivo = Archivo({
   display: "swap",
@@ -28,7 +29,7 @@ export default function RootLayout({
       <body
         className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} font-sans`}
       >
-        {children}
+        <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
   );
