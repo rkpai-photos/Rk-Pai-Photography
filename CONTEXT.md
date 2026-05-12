@@ -4,7 +4,8 @@
 
 ## 0. Working style (applies every session)
 
-- **Ask before you code when the ask is vague.** If the request is ambiguous, under-scoped, or could be read multiple ways, ask one focused clarifying question first. Guessing and redoing costs more than a round-trip.
+- **Clarify the prompt and any commands before you implement.** Before touching code, restate what you're about to do and confirm the intent of the request (and of any command/script the user asked you to run). If the request is ambiguous, under-scoped, could be read multiple ways, or hinges on a decision only the developer can make (which dependency, which file, delete vs. keep, scope boundaries), ask a focused question *first* — don't guess and redo. A round-trip is cheap; reworking the wrong thing is not.
+- **State your assumptions, out loud, to the developer.** Whenever you proceed without an explicit answer — picking an obvious default, inferring scope, interpreting a vague word, assuming something is safe to remove/change — say so plainly in your response ("Assuming X; say so if not"). Don't bury assumptions in the diff. If an assumption turns out to matter, the developer should have had the chance to correct it before the work landed.
 - **Security is non-negotiable — treat every change like it's going to production.**
   - **Never put a secret in source code.** No API keys, tokens, passwords, connection strings, service-account JSON, or shared secrets — ever, not even "temporarily", not in comments, not in test files. Read them from environment variables (`process.env.*`) or the platform's secret store (`npx convex env set …`, hosting-provider env settings). `.env*.local` and `.env` are gitignored — keep it that way; never commit a real value. (This repo deliberately has **no `.env.example`** — the required env vars are documented in §5; don't re-add one.)
   - **Never expose a secret to the client.** Anything prefixed `NEXT_PUBLIC_` is shipped in the browser bundle and is public by definition — only non-sensitive config goes there. Secrets must stay server-side (Convex functions, Next.js server components / route handlers / server actions). Don't store secrets in `localStorage`/`sessionStorage`, don't pass them as client→server function arguments if a server-only path exists, don't put them in URLs, don't log them, don't echo them in error messages.
@@ -32,8 +33,8 @@ Single Next.js app, public-facing. `/admin` is gated by **Convex Auth** (email +
 - **Auth (`/admin` only):** **Convex Auth** (`@convex-dev/auth` ^0.0.92, `@auth/core` 0.37.0) — Password provider + Next.js integration (`@convex-dev/auth/nextjs`, `middleware.ts`). See §5.
 - **Icons:** `lucide-react` &nbsp;|&nbsp; **Fonts:** Archivo via `next/font/google` (`--font-archivo`, the Tailwind `sans` family) + Poppins imported via Google Fonts CSS in `globals.css`
 - **Lint/format:** ESLint (`next/core-web-vitals` + `next/typescript`), Prettier (`tabWidth: 2`)
-- **`googleapis`** is now a **devDependency**, used only by the one-time import script (`scripts/import-from-sheet.mjs`). Once the import has been run in production it (and the script) can be removed.
-- **Vestigial deps — present in `package.json`, NOT used in `src/`:** `@prisma/client`, `prisma`, `aws-sdk`, `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`, `dotenv` (`dotenv` *is* used by `scripts/import-from-sheet.mjs`), `lodash` (used in `UI.jsx` for `debounce`). Leftovers from an earlier DynamoDB/Prisma approach. Don't build on them; remove them if you ever clean up dependencies.
+- **`googleapis`** was a devDependency for the one-time Google-Sheet import script — both removed on 2026-05-13 (see §11). `dotenv` was removed at the same time (its only consumer was that script).
+- **Vestigial deps still in `package.json`:** `lodash` (used in `UI.jsx` for `debounce` — that's the only use). The earlier DynamoDB/Prisma leftovers (`@prisma/client`, `prisma`, `aws-sdk`, `@aws-sdk/*`) and the unused `motion`/`split-type`/`class-variance-authority` have been removed (see §11).
 
 ## 3. Commands
 
@@ -45,26 +46,25 @@ pnpm run convex              # `convex dev` — provisions/syncs the Convex back
 pnpm run dev                 # Next.js dev server — http://localhost:3000  (run in a second terminal)
 pnpm run build               # production build  (needs convex/_generated to exist — i.e. `pnpm run convex` has run at least once)
 pnpm run start               # serve the production build
-pnpm run lint                # next lint (ESLint)
-pnpm run import:photos       # one-time Google Sheet -> Convex import (see §5 / scripts/import-from-sheet.mjs)
+pnpm run lint                # eslint . (ESLint 9 flat config — `next lint` was removed in Next 16)
 ```
 
-No test suite exists. Both `package-lock.json` and `pnpm-lock.yaml` are present (the pnpm lockfile was untracked); prefer pnpm and don't commit a second lockfile without reason.
+No test suite exists. Both `package-lock.json` and `pnpm-lock.yaml` are tracked and kept in sync (deliberately, per a 2026-05-13 call — see §11); prefer pnpm for day-to-day work, and if you change deps, run both `pnpm install` and `npm install` so neither lockfile drifts.
+
+The one-time Google Sheet → Convex import script (`pnpm run import:photos` / `scripts/import-from-sheet.mjs`) was removed on 2026-05-13 — the migration is done. See §11.
 
 ## 4. Directory Layout
 
 ```
 convex/                Convex backend
   schema.ts            `...authTables` (Convex Auth: users, authSessions, …) + `photos` table (slug, alt, width, height, story, imageId -> _storage, imageType, location?, createdAt, order) + by_slug / by_order indexes
-  photos.ts            queries: list, getBySlug · mutations (auth-gated via assertAdmin → Convex Auth + ADMIN_EMAILS): generateUploadUrl, create, update, remove, reorder. `generateUploadUrl`+`create` also accept a one-time `migrationToken` (for the import script).
+  photos.ts            queries: list, getBySlug · mutations (auth-gated via assertAdmin → Convex Auth + ADMIN_EMAILS): generateUploadUrl, create, update, remove, reorder. `generateUploadUrl`+`create` still carry a one-time `migrationToken` bypass arg — now vestigial (the import script that used it is gone); should be removed (see §9/§11).
   auth.ts              Convex Auth setup — `convexAuth({ providers: [Password] })`, exports auth/signIn/signOut/store/isAuthenticated
   auth.config.ts       JWT config (domain = CONVEX_SITE_URL, applicationID "convex")
   http.ts              `auth.addHttpRoutes(http)` — registers /.well-known/* (+ /api/auth/* if OAuth is added)
   setup.ts             one-time `internalAction createAdmin({ email, password })` — bootstraps the admin account via `createAccount`. Run: `npx convex run setup:createAdmin '{"email":"...","password":"..."}'`
   tsconfig.json        Convex-functions tsconfig
   _generated/          (created by `pnpm run convex` — committed once it exists; the app imports `api`/`dataModel` from here)
-scripts/
-  import-from-sheet.mjs  one-time: read the old Google Sheet -> upload images to Convex storage -> insert `photos` rows (via the migrationToken hatch). Re-runnable (skips existing slugs).
 src/
   middleware.ts        Convex Auth Next.js middleware — gates /admin* → /admin/login, proxies /api/auth/*. (MUST be `src/middleware.ts`, not repo root, because this project uses a `src/` dir — Next.js ignores a root-level one here.)
   app/                 Next.js App Router
@@ -126,14 +126,14 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 **Functions** ([convex/photos.ts](convex/photos.ts)):
 - `list` (query) — all photos, ascending by `order`, with `imageId` resolved to `imageUrl` via `ctx.storage.getUrl`. Public. Replaces the old `fetchFromGoogleSheet()`. (`.collect()` is intentional — a portfolio's photo set is bounded and the gallery renders all of it.)
 - `getBySlug` (query) — one photo by slug, url resolved. Public. (Used by `fetchPhotoBySlug`; the `/stories/[id]` page currently still does `fetchPhotos().find(...)`, which also works.)
-- `generateUploadUrl` / `create` / `update` / `remove` / `reorder` (mutations) — gated by `assertAdmin(ctx)`: requires a Convex Auth session (`getAuthUserId`) **and** the user's email to be on the `ADMIN_EMAILS` allow-list (comma-separated Convex env var). Being signed in is necessary but not sufficient. `update`/`remove` also `ctx.storage.delete` the old/removed file. `generateUploadUrl`+`create` additionally accept an optional `migrationToken` matched against `process.env.MIGRATION_TOKEN` — a deliberately narrow, time-boxed escape hatch used **only** by the one-time import script (set `MIGRATION_TOKEN` for the import, then `npx convex env remove MIGRATION_TOKEN`).
+- `generateUploadUrl` / `create` / `update` / `remove` / `reorder` (mutations) — gated by `assertAdmin(ctx)`: requires a Convex Auth session (`getAuthUserId`) **and** the user's email to be on the `ADMIN_EMAILS` allow-list (comma-separated Convex env var). Being signed in is necessary but not sufficient. `update`/`remove` also `ctx.storage.delete` the old/removed file. **Vestigial:** `generateUploadUrl`+`create` still accept an optional `migrationToken` (via `assertAdminOrMigration`) matched against `process.env.MIGRATION_TOKEN` — this was the one-time import script's escape hatch; that script is gone (2026-05-13), so this is now dead code *and* a latent auth bypass — remove it, and make sure no deployment has `MIGRATION_TOKEN` set.
 - **Auth backend:** [convex/auth.ts](convex/auth.ts) (`convexAuth({ providers: [Password] })`), [convex/auth.config.ts](convex/auth.config.ts) (JWT config), [convex/http.ts](convex/http.ts) (`auth.addHttpRoutes`), and `...authTables` spread into [convex/schema.ts](convex/schema.ts). [src/middleware.ts](src/middleware.ts) redirects unauthenticated visitors from `/admin*` to `/admin/login` and (when signed in) away from `/admin/login`.
 
 **Frontend reads:**
 - Server components (`/`, `/stories`, `/stories/[id]`) use `fetchQuery(api.photos.list, {})` from `convex/nextjs` via [src/lib/photo.ts](src/lib/photo.ts), which maps the rows to the same `Photo` shape components already consumed (`id`/`src`/`image_url`/`width`/`height`/`story`/`createdAt`/`created_at`/`imageType`/`image_type`/`location?`). On any error it logs and returns `[]`/`null`.
 - `/admin` (client) — `middleware.ts` enforces auth; the page also wraps content in `<Authenticated>`/`<Unauthenticated>`/`<AuthLoading>` from `convex/react`. Sign-in via `useAuthActions().signIn("password", {...})` on `/admin/login`; sign-out via `useAuthActions().signOut()`. Photo writes use `useMutation` (no secret args). Image upload flow: `generateUploadUrl` → `POST` the file bytes to that URL → get `storageId` → `create`/`update` with it. (The `ConvexAuthNextjsProvider` in the tree stores the session token in `localStorage` by default — that's a short-lived JWT, not a password, and it's the standard Convex Auth setup; pass `storage: "inMemory"` to the server provider if you'd rather not.)
 
-**`convex/_generated/`** is created by `pnpm run convex` (`convex dev`). Until it exists, anything importing `convex/_generated/api` (`src/lib/photo.ts`, `src/app/admin/*`, `convex/photos.ts`, `convex/http.ts`, `scripts/import-from-sheet.mjs`) won't typecheck/build — so run `pnpm run convex` once before `pnpm run build`. (It's committed once generated.)
+**`convex/_generated/`** is created by `pnpm run convex` (`convex dev`). Until it exists, anything importing `convex/_generated/api` (`src/lib/photo.ts`, `src/app/admin/*`, `convex/photos.ts`, `convex/http.ts`) won't typecheck/build — so run `pnpm run convex` once before `pnpm run build`. (It's committed once generated.)
 
 **Env vars** (`.env.local`, not committed — there is intentionally no `.env.example`; the full list is the table below):
 
@@ -145,10 +145,8 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 | `JWT_PRIVATE_KEY`, `JWKS` | Convex env | Convex Auth signing keys — generated + set by `npx @convex-dev/auth`. |
 | `SITE_URL` | Convex env | your app's URL (e.g. `http://localhost:3000` / prod URL) — set by `npx @convex-dev/auth` or `npx convex env set SITE_URL ...`. |
 | `ADMIN_EMAILS` | Convex env | comma-separated allow-list of emails permitted to write photos: `npx convex env set ADMIN_EMAILS "you@example.com"`. |
-| `MIGRATION_TOKEN` | Convex env **and** local — only for the one-time import | throwaway token enabling the import script's escape hatch; remove after import (`npx convex env remove MIGRATION_TOKEN`). |
-| `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_SHEET_ID`, `GOOGLE_SHEET_RANGE` | local | **only** for the one-time `pnpm run import:photos` (base64 service-account JSON, sheet id, optional A1 range). Remove after import. |
 
-**One-time migration import** ([scripts/import-from-sheet.mjs](scripts/import-from-sheet.mjs)): reads the old sheet with `googleapis`, fetches each `image_url`, uploads the bytes to Convex storage, inserts a `photos` row (`order` = sheet row index) — authenticating via the `migrationToken` hatch. Re-runnable — rows whose slug already exists are skipped. After it succeeds in prod: `npx convex env remove MIGRATION_TOKEN` (closes the hatch), then optionally `pnpm remove googleapis`, delete the script, and drop the `GOOGLE_*` env vars.
+> `MIGRATION_TOKEN` and the `GOOGLE_*` vars were only ever needed for the one-time Google-Sheet→Convex import, which is done; the import script was removed on 2026-05-13. If `MIGRATION_TOKEN` is still set on any deployment, remove it (`npx convex env remove MIGRATION_TOKEN`) — `convex/photos.ts` still honours it as an auth bypass until that vestigial code is deleted (see §9).
 
 ## 6. Routes & Data Flow
 
@@ -182,7 +180,7 @@ Photos live in a Convex `photos` table; image files live in Convex File Storage.
 - `prettier.config.js` uses CommonJS `module.exports` in an otherwise ESM-ish project — fine, just don't be surprised.
 - **`pnpm run build` fails until `pnpm run convex` has been run once** (it generates `convex/_generated/`, which `src/lib/photo.ts`, `src/app/admin/*`, `convex/photos.ts` and `convex/http.ts` import). Expected for a fresh checkout — not a bug. Also: `npx @convex-dev/auth` must have set the Convex Auth env vars (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`) or the `/admin` login will fail at runtime (the build still passes).
 - **Everything renders dynamically now** (`ƒ`, not `○` static) — `ConvexAuthNextjsServerProvider` reads auth cookies in the root layout, and `middleware.ts` runs on all routes. That's the standard Convex Auth Next.js setup; for a portfolio site the perf cost is negligible (the photo pages were already `force-dynamic`). Don't "fix" by removing the provider/middleware.
-- **`/admin` auth (post-hardening):** now Convex Auth (email+password) + an `ADMIN_EMAILS` allow-list for write authorization — no app secret in the client. Self-service sign-up is disabled (no UI affordance, and `convex/auth.ts`'s `Password({ profile })` rejects `signUp` for any email not on `ADMIN_EMAILS`); the admin account is created via `npx convex run setup:createAdmin`. Residuals worth knowing: (a) the session JWT lives in `localStorage` by default (Convex Auth's standard; short-lived & revocable — switch to `storage: "inMemory"` on the server provider if you want); (b) the `migrationToken` escape hatch on `generateUploadUrl`/`create` is a real bypass — it only works while `MIGRATION_TOKEN` is set on the deployment, so **remove that env var right after the import**. See §11.
+- **`/admin` auth (post-hardening):** now Convex Auth (email+password) + an `ADMIN_EMAILS` allow-list for write authorization — no app secret in the client. Self-service sign-up is disabled (no UI affordance, and `convex/auth.ts`'s `Password({ profile })` rejects `signUp` for any email not on `ADMIN_EMAILS`); the admin account is created via `npx convex run setup:createAdmin`. Residuals worth knowing: (a) the session JWT lives in `localStorage` by default (Convex Auth's standard; short-lived & revocable — switch to `storage: "inMemory"` on the server provider if you want); (b) the `migrationToken` escape hatch on `generateUploadUrl`/`create` is a real bypass that works whenever `MIGRATION_TOKEN` is set on the deployment — the import script that needed it was deleted on 2026-05-13, so this code is now pure dead weight: **delete the `migrationToken` arg + `assertAdminOrMigration` in `convex/photos.ts` and ensure no deployment has `MIGRATION_TOKEN` set**. See §11.
 
 ## 10. Dev Setup
 
@@ -201,18 +199,27 @@ npx convex run setup:createAdmin '{"email":"you@example.com","password":"<passwo
 
 # 3) Run it (second terminal):
 pnpm run dev                   # http://localhost:3000  →  /admin/login → sign in
-
-# 4) (Optional) one-time data migration from the old Google Sheet — skip if starting fresh:
-npx convex env set MIGRATION_TOKEN "$(openssl rand -hex 24)"     # also add MIGRATION_TOKEN=<same> + GOOGLE_* vars to .env.local
-pnpm run import:photos
-npx convex env remove MIGRATION_TOKEN                            # close the hatch; also delete it from .env.local
 ```
+
+(The old Google-Sheet → Convex data import was a one-time step; the script was removed on 2026-05-13. Add photos via `/admin`.)
 
 Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` catches the error and the site renders zero photos. `pnpm run build` fails until `pnpm run convex` has generated `convex/_generated/` at least once. `/admin/login` fails at runtime until the Convex Auth env vars (step 2) are set.
 
 ## 11. Conversation Log — engineering decisions & session summaries
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
+
+### 2026-05-13 — Dependency cleanup; removed the one-time Google-Sheet import script
+
+Housekeeping on the `migrate-to-convex` branch (which also carries an in-progress Next 14→16 / React 18→19 / ESLint 8→9-flat-config modernization, not yet logged here).
+
+- **Removed unused deps** (zero imports anywhere in `src/`/`convex/`): `motion` (the code uses `framer-motion`, never `motion` — they're the same lib under two names), `split-type`, `class-variance-authority` (`Button.tsx` uses `tailwind-merge`, not `cva`). The earlier AWS/Prisma vestigial deps (`@prisma/client`, `prisma`, `aws-sdk`, `@aws-sdk/*`) were already gone as part of the modernization.
+- **Removed the one-time migration machinery:** deleted `scripts/import-from-sheet.mjs` and the `import:photos` npm script; `pnpm remove googleapis dotenv` (both were used *only* by that script — `googleapis` was a devDep, `dotenv` was a regular dep with no other consumer). The Google-Sheet→Convex import is considered done/not-needed.
+- **Kept** `@auth/core` (peerDependency of `@convex-dev/auth` — looks unused to `depcheck`, isn't) and the dual `overrides` / `pnpm.overrides` postcss pins (npm needs the former, pnpm the latter — both lockfiles are still tracked).
+- **Both lockfiles re-synced** to the edited `package.json` (`pnpm install` for `pnpm-lock.yaml`, `npm install` for `package-lock.json`, then `pnpm install` again so `node_modules` is in pnpm's layout for dev). Per the user's call, the project keeps both lockfiles for now rather than going pnpm-only.
+- **Verified:** `npx tsc --noEmit` clean; `pnpm run build` succeeds (Next 16 / Turbopack, all routes compile). Pre-existing noise unchanged: the `middleware`→`proxy` deprecation warning, 6 npm-audit advisories.
+- **Left as a follow-up:** `convex/photos.ts` still has the `migrationToken` escape hatch (`assertAdminOrMigration` + the `migrationToken` arg on `generateUploadUrl`/`create`, matched against `process.env.MIGRATION_TOKEN`). With the import script deleted it's now dead code *and* a latent auth bypass — should be removed (and `MIGRATION_TOKEN` dropped from any deployment). Also a stale `Bash(node --check scripts/import-from-sheet.mjs)` permission lingers in `.claude/settings.local.json`.
+- **Also (same session):** added two working-style rules to §0 at the developer's request — *clarify the prompt/commands before implementing* and *state assumptions out loud to the developer* (don't bury them in the diff).
 
 ### 2026-05-12 — Unified the site header; wired the photo-detail share button; dropped .env.example
 
