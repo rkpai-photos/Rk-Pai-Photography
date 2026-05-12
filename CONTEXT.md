@@ -209,6 +209,12 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
 
+### 2026-05-13 — Fixed the site-nav anchor links ("About" / "Recent Stories" dead on non-home pages)
+
+Bug: in [src/sections/Header.tsx](src/sections/Header.tsx), the menu's "About" (`/#intro`) and "Recent Stories" links did nothing when clicked from any page other than `/`. Root cause — `handleNavigation` only ever did a *same-page* scroll for `/#…` anchors (`getElementById(...)?.scrollIntoView()`, no fallback) and had no "navigate to `/` first" path; it was written when this Header was home-only, but commit `2d7ef03` reused it on `/stories`, `/stories/[id]`, `/album`, where `id="intro"` (in `About.tsx`) and `id="projects"` (in `Projects.tsx`) don't exist. Also "Recent Stories" had a malformed `href` (`#projects`, no leading `/`) so it never hit the `/#` branch — it fell through to `router.push("#projects")`, a relative-hash no-op. (And "Contact"'s `mailto:` was going through `router.push`, which doesn't open a mail client.)
+
+Fix: `handleNavigation` now — (1) routes `mailto:`/`tel:`/`isExternal` through `window.location.href`; (2) for `/#…` anchors, smooth-scrolls if `usePathname() === "/"`, else `window.location.href = "/#…"` so the browser lands on the home page and scrolls to the section (chose a real navigation over `router.push` here so the hash-scroll is guaranteed); (3) plain routes still use `router.push`. Also fixed the `#projects` → `/#projects` href and set Contact's `isExternal: true`. Verified `tsc --noEmit` clean; **not browser-tested here** — confirm: from `/stories`, "About" lands on `/` at the About section and "Recent Stories" at "My Recent Stories"; on `/`, both still smooth-scroll in-page; "Contact" opens the mail client. *(Possible later cleanup: convert the menu items to `<Link>` and drop the bespoke handler — left as a refactor, not a fix.)*
+
 ### 2026-05-13 — Cleared the Next 16 dev-server warnings (proxy rename, next/image sizes)
 
 Triaged the warnings the dev server / build were printing after the Next 14→16 modernization:

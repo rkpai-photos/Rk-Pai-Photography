@@ -3,7 +3,7 @@
 import { FC, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import bird from "@/assets/images/rkpai1.png";
 import { motion, useAnimate, AnimatePresence } from "framer-motion";
 import { ImageIcon } from "lucide-react";
@@ -26,18 +26,19 @@ const navItems = [
   },
   {
     label: "Recent Stories",
-    href: "#projects",
+    href: "/#projects",
     isExternal: false,
   },
   {
     label: "Contact",
     href: "mailto:rkpaiin@gmail.com",
-    isExternal: false,
+    isExternal: true,
   },
 ];
 
 const Header: FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [navScope, navAnimate] = useAnimate();
 
@@ -66,20 +67,30 @@ const Header: FC = () => {
   const handleNavigation = (href: string, isExternal: boolean) => {
     setIsOpen(false);
 
-    if (isExternal) {
+    // Protocol links (mailto:/tel:) and anything flagged external: hand off to the browser.
+    if (isExternal || href.startsWith("mailto:") || href.startsWith("tel:")) {
       window.location.href = href;
       return;
     }
 
+    // Home-page section anchors ("/#intro", "/#projects", …). This Header is
+    // mounted on every public page now, not just "/", so the target element may
+    // not exist on the current page — if we're already home, smooth-scroll to it;
+    // otherwise navigate to "/#…" and let the browser scroll to the section.
     if (href.startsWith("/#")) {
-      const elementId = href.split("#")[1];
-      const element = document.getElementById(elementId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+      const elementId = href.slice(2);
+      if (pathname === "/") {
+        document
+          .getElementById(elementId)
+          ?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        window.location.href = href;
       }
-    } else {
-      router.push(href);
+      return;
     }
+
+    // Plain in-app routes ("/stories", "/album", …).
+    router.push(href);
   };
 
   const menuItemVariants = {
