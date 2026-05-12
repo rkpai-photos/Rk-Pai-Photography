@@ -159,6 +159,8 @@ const Test: FC = () => {
               src={photo}
               alt="Wildlife Photographer"
               fill
+              // Image column is full-width on mobile, half-width from `md:` (768px) up.
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover fade-to-transparent"
               priority
             />

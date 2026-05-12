@@ -79,7 +79,9 @@ export default async function PhotoDetailPage({
                   alt={photo.alt}
                   width={photo.width}
                   height={photo.height}
-                  layout="responsive"
+                  // `width`/`height` + `w-full h-auto` already makes this responsive;
+                  // the legacy `layout="responsive"` prop was removed in Next 13.
+                  sizes="(max-width: 1024px) 100vw, 60vw"
                   className="w-full h-auto object-cover"
                   priority
                 />

@@ -3,7 +3,7 @@
 
 // Photo CRUD dashboard. Replaces editing the old Google Sheet by hand.
 //
-// Auth: Convex Auth (email + password). The middleware (middleware.ts) already
+// Auth: Convex Auth (email + password). The proxy (src/proxy.ts) already
 // bounces unauthenticated visitors to /admin/login; the <Authenticated> guard
 // here is belt-and-braces. *Authorization* to actually write photos additionally
 // requires the signed-in email to be on the ADMIN_EMAILS allow-list on the
