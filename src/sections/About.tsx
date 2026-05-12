@@ -140,8 +140,11 @@ const Test: FC = () => {
             <Image
               src="/images/sig.png"
               alt="Signature"
+              // sig.png is 300×150 (2:1); width/height must match that ratio or
+              // Tailwind's `img { height: auto }` reset recomputes the height and
+              // next/image warns about a broken aspect ratio.
               width={150}
-              height={60}
+              height={75}
               className="opacity-80"
             />
           </motion.div>
