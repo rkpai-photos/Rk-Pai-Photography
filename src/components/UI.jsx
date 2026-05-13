@@ -2,7 +2,7 @@
 // @ts-nocheck
 // UI.jsx
 "use client";
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { useAtom } from "jotai";
 import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
@@ -25,7 +25,16 @@ export const UI = () => {
     [],
   );
 
+  // Only play the flip sound when the page actually changes — not on mount.
+  // (A useEffect always fires once after the first render; since you reach
+  // /album via an in-app click, the browser's autoplay gate is already open,
+  // so that mount-run would otherwise play the sound on page load.)
+  const didMount = useRef(false);
   useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      return;
+    }
     playPageFlipSound();
   }, [page, playPageFlipSound]);
 
