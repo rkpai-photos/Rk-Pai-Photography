@@ -15,9 +15,11 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#e7e5e4", // stone-200 — matches the body
     theme_color: "#1c1917", // stone-900 — matches the top of the curtain loader
     icons: [
-      // These point at the dynamic icon routes (src/app/icon.tsx, apple-icon.tsx).
-      { src: "/icon", sizes: "32x32", type: "image/png" },
-      { src: "/apple-icon", sizes: "180x180", type: "image/png" },
+      // Static PNGs upscaled from /public/favicon.ico via ffmpeg (Lanczos from
+      // the 48×48 frame). 192/512 are the PWA-manifest standard sizes; the
+      // Apple touch icon is auto-wired from src/app/apple-icon.png by Next.
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   };
 }
