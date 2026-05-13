@@ -209,6 +209,16 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
 
+### 2026-05-13 — Switched the page-transition visual to "Curtain wipe" (option B)
+
+The first cut used option A (Wordmark draw-on); the user found it too quiet and asked for option B instead. Same wait-for-critical-images logic underneath — only the overlay's visual changed:
+
+- **Two `bg-stone-900` panels** (top-half and bottom-half) slide in to meet at screen-centre, "**RK&nbsp;PAI**" anchored at the bottom edge of the top panel, "**PHOTOGRAPHY**" at the top edge of the bottom panel — so when the curtain is closed the brand sits stacked across the seam. Slide out (top up, bottom down) on reveal. Easing: `cubic-bezier(0.77, 0, 0.18, 1)` over 450ms each way ("expo" snap, the film-slate / cinematic curve from the brainstorm mockup).
+- **Driven by `transition: transform …` on inline `style`** — `state.visible` flipping in either direction naturally triggers the close or open animation; no `@keyframes` remounting tricks needed (the previous wordmark + bar approach is gone). The `transitionId` field on `pageTransitionAtom` is now vestigial (no element keys on it anymore) but kept for shape stability and the popstate increment.
+- **`MIN_VISIBLE_MS` bumped 600 → 800ms** so the curtain has ~350ms of fully-covered "brand visible" hold between the 450ms close and the 450ms open. Cold loads still ignore the floor (`startedAt = 0`).
+- **`prefers-reduced-motion`** now just kills the slide (`transition: none` on the `.rkpai-transition-panel` marker class) — panels snap show/hide. No more keyframe-redefinition trick. The previous `rkpai-wordmark-stroke` / `rkpai-bar-grow` keyframes were removed from `globals.css`.
+- **All other behaviour unchanged** — wait-for-critical-images (above-the-fold / `fetchpriority="high"` images, `MAX_WAIT_MS=1500`), `/album` fixed-grace fallback, `/admin*` suppression, popstate handler, the three callsite migrations (Header / GalleryGrid / Projects). See the entry below for the full architecture.
+
 ### 2026-05-13 — Page-transition loader (wordmark draw-on + wait-for-critical-images)
 
 Added a global loading screen / page transition. *(Brainstormed via `superpowers:brainstorming`; design-doc + spec-review steps skipped per the user — decisions captured here instead.)*

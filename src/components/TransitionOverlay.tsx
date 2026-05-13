@@ -1,17 +1,22 @@
 "use client";
 
-// Full-bleed loader overlay (option A "Wordmark draw-on" — see the brainstorm
-// log in CONTEXT.md §11). Mounted once in src/app/layout.tsx, sits above
-// everything (z-[100]) and:
+// Full-bleed loader overlay — option B "Curtain wipe" (see CONTEXT.md §11).
+// Two stone-900 panels close from top and bottom over the page, the brand
+// (RK PAI / PHOTOGRAPHY) sits between them while the next page loads behind,
+// then they slide apart to reveal. Mounted once in src/app/layout.tsx, sits
+// above everything (z-[100]) and:
 //
-//   • on cold load: rendered visible via the atom default (so it's in the
-//     first paint, no flash of unloaded content), then dismisses itself once
-//     critical images are decoded.
+//   • on cold load: rendered closed via the atom default (so it's in the
+//     first paint, no flash of unloaded content); slides open once critical
+//     images are decoded.
 //   • on in-app nav: <TransitionLink>/`useStartPageTransition` flips `visible`
-//     to true on click; the pathname watcher in this file runs the same
-//     wait-for-images routine once the new route mounts.
-//   • on /admin*: returns null entirely — the admin dashboard doesn't get the
-//     transition treatment.
+//     to true on click — panels slide in (close), wait-for-images runs once
+//     the new route mounts, then panels slide out (open).
+//   • on /admin*: returns null entirely.
+//
+// The visual is driven by `transition: transform …` on the panels (no @keyframes
+// remounting tricks) — state.visible flipping in either direction naturally
+// triggers the close or open animation.
 
 import { useAtom } from "jotai";
 import { usePathname } from "next/navigation";
@@ -34,7 +39,6 @@ export default function TransitionOverlay() {
   // change, run the wait-for-critical-images routine and then dismiss.
   useEffect(() => {
     if (isSuppressedPath(pathname)) {
-      // Admin routes — ensure the loader isn't lingering visible.
       if (state.visible) setState((s) => ({ ...s, visible: false }));
       prevPathname.current = pathname;
       return;
@@ -44,12 +48,9 @@ export default function TransitionOverlay() {
     const pathChanged = !isFirstRun && prevPathname.current !== pathname;
     prevPathname.current = pathname;
     if (!isFirstRun && !pathChanged) return;
-    if (!state.visible) return; // already hidden — nothing to dismiss
+    if (!state.visible) return;
 
     let cancelled = false;
-    // startedAt = 0 on cold load → MIN_VISIBLE_MS floor doesn't apply (the
-    // wait-for-images itself provides the visible time). On in-app navs,
-    // <TransitionLink> sets startedAt = Date.now() so the floor kicks in.
     const startedAt = state.startedAt || 0;
 
     waitForCriticalImages(pathname).then(() => {
@@ -64,13 +65,10 @@ export default function TransitionOverlay() {
     return () => {
       cancelled = true;
     };
-    // We deliberately want this to run on pathname change only — the state
-    // values it reads are snapshots at the moment of nav, not reactive deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // popstate (browser back/forward): re-show the loader. The pathname
-  // watcher above then handles the rest once Next swaps routes.
+  // popstate (browser back/forward): re-close the curtain.
   useEffect(() => {
     const onPop = () => {
       if (isSuppressedPath(window.location.pathname)) return;
@@ -86,10 +84,16 @@ export default function TransitionOverlay() {
 
   if (isSuppressedPath(pathname)) return null;
 
+  // Both panels share the same easing and duration; close and open just go in
+  // opposite directions. cubic-bezier(.77,0,.18,1) is a snappy "expo" curve
+  // common to film-slate / curtain transitions.
+  const easing =
+    "transform 450ms cubic-bezier(0.77, 0, 0.18, 1)";
+
   return (
     <div
-      className={`rkpai-transition-overlay fixed inset-0 z-[100] bg-stone-200 flex items-center justify-center transition-opacity duration-200 ease-out ${
-        state.visible ? "opacity-100" : "opacity-0 pointer-events-none"
+      className={`rkpai-transition-overlay fixed inset-0 z-[100] ${
+        state.visible ? "pointer-events-auto" : "pointer-events-none"
       }`}
       aria-hidden={!state.visible}
       role="status"
@@ -101,45 +105,51 @@ export default function TransitionOverlay() {
       </noscript>
       <span className="sr-only">Loading</span>
 
-      {/* `key` bumps each transition so the SVG + bar remount and the CSS
-          animations replay. */}
-      <div key={state.transitionId} className="w-full max-w-md px-8">
-        <svg viewBox="0 0 200 50" className="w-full h-auto" aria-hidden="true">
-          <text
-            x="100"
-            y="36"
-            textAnchor="middle"
-            className="fill-stone-900 stroke-stone-900"
-            style={{
-              fontFamily: 'Georgia, "Times New Roman", serif',
-              fontWeight: 700,
-              fontSize: 28,
-              strokeWidth: 0.5,
-              // Initial = hidden (full dashoffset, no fill). Keyframes draw
-              // the stroke, then cross-fade to a solid fill. With `forwards`
-              // the final state matches: dashoffset=0, fillOpacity=1,
-              // strokeOpacity=0 — wordmark sits as a solid letterform.
-              strokeDasharray: 600,
-              strokeDashoffset: 600,
-              fillOpacity: 0,
-              strokeOpacity: 1,
-              animation:
-                "rkpai-wordmark-stroke 850ms ease-in-out forwards",
-            }}
-          >
-            RK PAI
-          </text>
-        </svg>
-        <div className="mt-3 h-px w-full bg-stone-900/15 overflow-hidden">
-          <div
-            className="h-full bg-red-orange-500 origin-left"
-            style={{
-              transform: "scaleX(0)",
-              animation:
-                "rkpai-bar-grow 1500ms cubic-bezier(0.15, 0.6, 0.3, 0.95) forwards",
-            }}
-          />
-        </div>
+      {/* Top panel — closes from above, "RK PAI" anchored at its bottom edge
+          so it ends up just above the seam at screen-centre. */}
+      <div
+        className="rkpai-transition-panel absolute top-0 left-0 w-full h-1/2 bg-stone-900 flex items-end justify-center pb-3 md:pb-5"
+        style={{
+          transform: state.visible ? "translateY(0)" : "translateY(-100%)",
+          transition: easing,
+          willChange: "transform",
+        }}
+      >
+        <span
+          className="text-stone-100"
+          style={{
+            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontWeight: 700,
+            letterSpacing: "0.18em",
+            fontSize: "clamp(1.5rem, 5vw, 3rem)",
+            lineHeight: 1,
+          }}
+        >
+          RK&nbsp;PAI
+        </span>
+      </div>
+
+      {/* Bottom panel — closes from below, "PHOTOGRAPHY" at its top edge. */}
+      <div
+        className="rkpai-transition-panel absolute bottom-0 left-0 w-full h-1/2 bg-stone-900 flex items-start justify-center pt-3 md:pt-5"
+        style={{
+          transform: state.visible ? "translateY(0)" : "translateY(100%)",
+          transition: easing,
+          willChange: "transform",
+        }}
+      >
+        <span
+          className="text-stone-400"
+          style={{
+            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontWeight: 400,
+            letterSpacing: "0.32em",
+            fontSize: "clamp(0.7rem, 1.8vw, 1.05rem)",
+            lineHeight: 1,
+          }}
+        >
+          PHOTOGRAPHY
+        </span>
       </div>
     </div>
   );
@@ -154,8 +164,6 @@ export default function TransitionOverlay() {
 async function waitForCriticalImages(
   pathname: string | null | undefined,
 ): Promise<void> {
-  // One animation frame so the new route gets a chance to render its DOM
-  // before we scan it.
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => resolve()),
   );
@@ -177,7 +185,6 @@ async function waitForCriticalImages(
   });
 
   if (critical.length === 0) {
-    // Brief settle so the wordmark animation is visible.
     await new Promise<void>((resolve) => window.setTimeout(resolve, 200));
     return;
   }
