@@ -62,6 +62,20 @@ export const metadata: Metadata = {
   keywords: defaultKeywords,
   category: "photography",
   alternates: { canonical: "/" },
+  // Explicit icon declarations so Google's favicon crawler sees more than just
+  // /favicon.ico (which tops out at the 48×48 frame — Google's minimum, not
+  // its preferred size). The 192×192 PNG is the size Google's documentation
+  // specifically recommends for SERP favicons. The /apple-icon.png file
+  // convention would still wire this up on its own, but listing all icons in
+  // one place keeps the SEO surface auditable.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+  },
   openGraph: {
     type: "website",
     siteName,
