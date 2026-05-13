@@ -12,7 +12,6 @@ const config: Config = {
       fontFamily: {
         sans: "var(--font-archivo)",
         playfair: ["var(--font-playfair)", "Georgia", "serif"],
-        playwrite: ['"Playwrite GB S"', "var(--font-playwrite)", "cursive"],
       },
       container: {
         center: true,

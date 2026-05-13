@@ -109,13 +109,11 @@ const Test: FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              {/* Bio: Playwrite GB S (cursive "learning-to-write" script,
-                  loaded via next/font in layout.tsx) at weight 300, italic.
-                  The cursive is inherently slanted; the `italic` utility is
-                  here for spec alignment and matches Google Fonts' "Light 300
-                  Italic" preview label. Sizes + hung-indent + breathing-
-                  underline span retained from the previous Archivo version. */}
-              <div className="font-playwrite font-light italic text-lg md:text-2xl space-y-4">
+              {/* Bio: same typography as the previous version (text-lg md:text-2xl,
+                  space-y-4, continuation paragraphs hung-indented by ml-10 md:ml-12,
+                  one phrase carrying the animated breathing underline) — just the
+                  new copy split across three sentences for rhythm. */}
+              <div className="text-lg md:text-2xl space-y-4">
                 <p>
                   Nature is my greatest inspiration, and{" "}
                   <motion.span
