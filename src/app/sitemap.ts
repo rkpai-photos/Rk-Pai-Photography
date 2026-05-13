@@ -4,11 +4,22 @@
 // single biggest organic-discovery lever for a photography portfolio.
 //
 // See https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
+//
+// `force-dynamic` is required because `fetchPhotos` → `fetchQuery` from
+// `convex/nextjs` uses `revalidate: 0` (Convex data is always live). Without
+// this, Next tries to statically pre-render the sitemap at build time and
+// throws DYNAMIC_SERVER_USAGE — fetchPhotos's try/catch then swallows the
+// error and returns [], so the build "succeeds" but the sitemap ships with
+// zero photo URLs. Setting the route to force-dynamic moves rendering to
+// request-time, which is fine for a sitemap (search bots fetch it a few
+// times a day, not on the hot path).
 
 import type { MetadataRoute } from "next";
 
 import { fetchPhotos } from "@/lib/photo";
 import { absoluteUrl } from "@/lib/site";
+
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const photos = await fetchPhotos();
