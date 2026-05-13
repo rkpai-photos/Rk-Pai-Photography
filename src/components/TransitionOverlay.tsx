@@ -85,10 +85,10 @@ export default function TransitionOverlay() {
   if (isSuppressedPath(pathname)) return null;
 
   // Both panels share the same easing and duration; close and open just go in
-  // opposite directions. cubic-bezier(.77,0,.18,1) is a snappy "expo" curve
-  // common to film-slate / curtain transitions.
+  // opposite directions. cubic-bezier(.65,0,.35,1) is an ease-in-out cubic —
+  // smoother than the snappy expo we shipped first.
   const easing =
-    "transform 450ms cubic-bezier(0.77, 0, 0.18, 1)";
+    "transform 550ms cubic-bezier(0.65, 0, 0.35, 1)";
 
   return (
     <div
@@ -105,10 +105,11 @@ export default function TransitionOverlay() {
       </noscript>
       <span className="sr-only">Loading</span>
 
-      {/* Top panel — closes from above, "RK PAI" anchored at its bottom edge
-          so it ends up just above the seam at screen-centre. */}
+      {/* Top panel — closes from above, "RK PAI" (Playfair Display 800, the
+          editorial display serif loaded in layout.tsx) anchored just above the
+          seam. */}
       <div
-        className="rkpai-transition-panel absolute top-0 left-0 w-full h-1/2 bg-stone-900 flex items-end justify-center pb-3 md:pb-5"
+        className="rkpai-transition-panel absolute top-0 left-0 w-full h-1/2 bg-stone-900 flex items-end justify-center pb-4 md:pb-6"
         style={{
           transform: state.visible ? "translateY(0)" : "translateY(-100%)",
           transition: easing,
@@ -116,22 +117,24 @@ export default function TransitionOverlay() {
         }}
       >
         <span
-          className="text-stone-100"
+          className="font-playfair text-stone-100"
           style={{
-            fontFamily: 'Georgia, "Times New Roman", serif',
-            fontWeight: 700,
-            letterSpacing: "0.18em",
-            fontSize: "clamp(1.5rem, 5vw, 3rem)",
+            fontWeight: 800,
+            letterSpacing: "0.04em",
+            fontSize: "clamp(2rem, 7vw, 4.5rem)",
             lineHeight: 1,
+            fontFeatureSettings: '"kern", "liga"',
           }}
         >
           RK&nbsp;PAI
         </span>
       </div>
 
-      {/* Bottom panel — closes from below, "PHOTOGRAPHY" at its top edge. */}
+      {/* Bottom panel — closes from below; "PHOTOGRAPHY" caption sits in
+          Archivo (the body sans) at a thin weight with wide tracking, for an
+          editorial serif/sans contrast against the wordmark above. */}
       <div
-        className="rkpai-transition-panel absolute bottom-0 left-0 w-full h-1/2 bg-stone-900 flex items-start justify-center pt-3 md:pt-5"
+        className="rkpai-transition-panel absolute bottom-0 left-0 w-full h-1/2 bg-stone-900 flex items-start justify-center pt-4 md:pt-6"
         style={{
           transform: state.visible ? "translateY(0)" : "translateY(100%)",
           transition: easing,
@@ -139,16 +142,17 @@ export default function TransitionOverlay() {
         }}
       >
         <span
-          className="text-stone-400"
+          className="font-sans text-stone-400 uppercase"
           style={{
-            fontFamily: 'Georgia, "Times New Roman", serif',
-            fontWeight: 400,
-            letterSpacing: "0.32em",
-            fontSize: "clamp(0.7rem, 1.8vw, 1.05rem)",
+            fontWeight: 300,
+            letterSpacing: "0.4em",
+            fontSize: "clamp(0.7rem, 1.7vw, 0.95rem)",
             lineHeight: 1,
+            // Compensate for `letter-spacing` pushing the last char off-centre.
+            paddingLeft: "0.4em",
           }}
         >
-          PHOTOGRAPHY
+          Photography
         </span>
       </div>
     </div>

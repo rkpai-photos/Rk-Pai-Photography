@@ -43,12 +43,12 @@ export const pageTransitionAtom = atom<PageTransitionState>({
 
 /**
  * Minimum time the loader stays "engaged" on an in-app navigation (ms).
- * Counted from the moment the curtain starts closing — so with a 450ms close
- * and 450ms open this gives ~350ms of fully-covered "brand visible" hold in
- * between. Doesn't apply on cold loads (startedAt = 0; wait-for-images
- * provides the visible time naturally).
+ * Counted from the moment the curtain starts closing — so with a 550ms close
+ * and 550ms open this gives ~300ms of fully-covered "brand visible" hold in
+ * between (enough to read the wordmark). Doesn't apply on cold loads
+ * (startedAt = 0; wait-for-images provides the visible time naturally).
  */
-export const MIN_VISIBLE_MS = 800;
+export const MIN_VISIBLE_MS = 850;
 /** Hard ceiling on waiting for critical images (ms) — never hang. */
 export const MAX_WAIT_MS = 1500;
 /**

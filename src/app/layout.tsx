@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Archivo } from "next/font/google";
+import { Archivo, Playfair_Display } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import TransitionOverlay from "@/components/TransitionOverlay";
@@ -10,6 +10,17 @@ const archivo = Archivo({
   weight: "variable",
   subsets: ["latin"],
   variable: "--font-archivo",
+});
+
+// Display serif used by <TransitionOverlay>'s wordmark and by the
+// `font-playfair` class scattered through stories/[id]/page.tsx (which until
+// now resolved to nothing — see CONTEXT.md §11). Loaded with display:swap so
+// the curtain doesn't FOIT; metric-compatible fallback is auto-generated.
+const playfair = Playfair_Display({
+  display: "swap",
+  weight: ["400", "700", "800"],
+  subsets: ["latin"],
+  variable: "--font-playfair",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +41,7 @@ export default function RootLayout({
           <link rel="icon" href="/favicon.ico" />
         </head>
         <body
-          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} font-sans`}
+          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} ${playfair.variable} font-sans`}
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>
           {/* Page-transition loader. SSR'd visible on cold loads, fades out

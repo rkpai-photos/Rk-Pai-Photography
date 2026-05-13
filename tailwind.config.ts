@@ -12,6 +12,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: "var(--font-archivo)",
+        playfair: ["var(--font-playfair)", "Georgia", "serif"],
       },
       container: {
         center: true,

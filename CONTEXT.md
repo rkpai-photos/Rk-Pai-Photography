@@ -209,6 +209,15 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
 
+### 2026-05-13 — Tuned the curtain wipe: smoother timing + proper editorial typography
+
+Polish pass on the curtain-wipe loader from the previous entry.
+
+- **Smoothness**: duration 450 → 550ms, easing `cubic-bezier(.77, 0, .18, 1)` (snappy expo) → `cubic-bezier(.65, 0, .35, 1)` (ease-in-out cubic). Less abrupt at both ends, glides into and out of the seam. `MIN_VISIBLE_MS` 800 → 850 so the curtain still has ~300ms of fully-covered "brand visible" hold between the 550ms close and 550ms open (total minimum transition ≈ 1450ms on in-app navs; cold loads still ignore the floor).
+- **Typography**: loaded **Playfair Display** properly via `next/font/google` in [src/app/layout.tsx](src/app/layout.tsx) (weights 400/700/800, `display: swap`, exposed as `--font-playfair`) and added a `playfair` entry to [tailwind.config.ts](tailwind.config.ts) so `font-playfair` is finally a real class. Wordmark "RK PAI" now uses Playfair 800 at `clamp(2rem, 7vw, 4.5rem)` with tight `0.04em` tracking on `text-stone-100`; the "Photography" caption uses Archivo (the body sans) at weight 300, uppercase via `text-transform`, wide `0.4em` tracking on `text-stone-400` — classic editorial serif/sans contrast. Roman (non-italic) — documentary feel, not magazine-italic.
+- **Side benefit**: the orphan `font-playfair` classes scattered through [src/app/stories/[id]/page.tsx](src/app/stories/[id]/page.tsx) (which used to fall back to Archivo silently because Playfair was never loaded — see §8) now actually render in Playfair.
+- **Heads-up**: the dev server may need a restart after pulling this — `next/font` fetches Google Fonts at build/dev-server start, so adding a new font isn't always picked up by HMR.
+
 ### 2026-05-13 — Switched the page-transition visual to "Curtain wipe" (option B)
 
 The first cut used option A (Wordmark draw-on); the user found it too quiet and asked for option B instead. Same wait-for-critical-images logic underneath — only the overlay's visual changed:
