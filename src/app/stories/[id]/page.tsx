@@ -1,24 +1,71 @@
 /* eslint-disable */
 // @ts-nocheck
-import { fetchPhotos } from "@/lib/photo";
+import type { Metadata } from "next";
+
+import { fetchPhotoBySlug, fetchPhotos } from "@/lib/photo";
 import Image from "next/image";
 import { Camera, BookOpen, Calendar, MapPin } from "lucide-react";
 import Header from "@/sections/Header";
+import JsonLd from "@/components/JsonLd";
+import {
+  absoluteUrl,
+  person,
+  siteLanguage,
+  siteName,
+} from "@/lib/site";
 import TypeWriter from "./TypeWriter";
 import PhotoDetailClient from "./PhotoClinet";
 
 // Next 16: `params` is a Promise — must be awaited.
+//
+// generateMetadata sets title/description/canonical + Open Graph + Twitter
+// per photo. The OG image itself is auto-wired by Next from the sibling
+// opengraph-image.tsx in this same route segment — no need to set
+// `openGraph.images` here.
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
-}) {
+}): Promise<Metadata> {
   const { id } = await params;
-  const photos = await fetchPhotos();
-  const photo = photos.find((p) => p.id === id);
+  const photo = await fetchPhotoBySlug(id);
+
+  if (!photo) {
+    return {
+      title: "Photo Not Found",
+      description: "The requested photo does not exist.",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = photo.alt || "Photograph";
+  // Trim long stories to a meta-description-friendly length.
+  const description = photo.story
+    ? photo.story.length > 160
+      ? `${photo.story.slice(0, 157).trimEnd()}…`
+      : photo.story
+    : `Wildlife photograph by RK Pai${
+        photo.location ? ` — ${photo.location}` : ""
+      }.`;
+  const path = `/stories/${id}`;
+
   return {
-    title: photo ? `Rk Pai Stories - ${photo.alt}` : "Photo Not Found",
-    description: photo?.story || "Photo details",
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url: path,
+      ...(photo.created_at && { publishedTime: photo.created_at }),
+      authors: [person.name],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 
@@ -47,8 +94,38 @@ export default async function PhotoDetailPage({
     );
   }
 
+  // schema.org Photograph — gives Google enough structure to render this in
+  // Image Search with proper title/description/credit, and unlocks rich-result
+  // eligibility. `creator` + `copyrightHolder` are the Person from site.ts.
+  const photographJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Photograph",
+    name: photo.alt,
+    ...(photo.story && { description: photo.story, caption: photo.story }),
+    url: absoluteUrl(`/stories/${photo.id}`),
+    contentUrl: photo.image_url,
+    thumbnailUrl: photo.image_url,
+    ...(photo.width && { width: photo.width }),
+    ...(photo.height && { height: photo.height }),
+    ...(photo.created_at && { datePublished: photo.created_at }),
+    ...(photo.location && {
+      contentLocation: { "@type": "Place", name: photo.location },
+      locationCreated: { "@type": "Place", name: photo.location },
+    }),
+    creator: person,
+    copyrightHolder: person,
+    author: person,
+    isPartOf: {
+      "@type": "WebSite",
+      name: siteName,
+      url: absoluteUrl("/"),
+    },
+    inLanguage: siteLanguage,
+  };
+
   return (
     <div className="relative min-h-screen bg-stone-200 p-4 md:p-8 pt-28 md:pt-36 font-sans overflow-hidden">
+      <JsonLd data={photographJsonLd} />
       <Header />
 
       <div className="max-w-7xl mx-auto relative z-10">

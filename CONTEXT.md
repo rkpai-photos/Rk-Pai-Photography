@@ -209,6 +209,42 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
 
+### 2026-05-13 — Comprehensive SEO pass (sitemap, robots, metadata, JSON-LD, OG images, icons)
+
+Full SEO setup for `https://www.rkpai.in` (DNS-verified in Google Search Console — no HTML verification meta tag needed). *(Brainstormed via `superpowers:brainstorming`; design-doc + spec-review skipped per the user pattern, decisions captured here.)*
+
+**Single source of truth — [src/lib/site.ts](src/lib/site.ts):**
+`siteUrl = "https://www.rkpai.in"` (www, not apex — user runs with the www subdomain), `siteName`, `siteLocale = "en_IN"`, `defaultTitle`, `titleTemplate = "%s · Rk Pai Photography"`, `defaultDescription`, `defaultKeywords`, a `person` object (name "RK Pai", `jobTitle: "Wildlife Photographer"`, email, `sameAs: [facebook.com/rkpaiin, instagram.com/rk.pai]`), and an `absoluteUrl(path)` helper. Every metadata/sitemap/JSON-LD/OG file imports from here so the domain or brand info change in one place.
+
+**New metadata routes:**
+- [src/app/sitemap.ts](src/app/sitemap.ts) → `/sitemap.xml`. Static routes (`/`, `/stories`, `/album`) + every photo as `/stories/[slug]` with the photo URL in `images: [...]` (Google reads that field for Image Search — the biggest organic-discovery lever for a photo site). `priority` weighted (1.0 home → 0.8 photos → 0.7 album), `lastModified` from `photo.createdAt`.
+- [src/app/robots.ts](src/app/robots.ts) → `/robots.txt`. `allow: "/"`, `disallow: ["/admin", "/admin/", "/api/"]`, points at `/sitemap.xml`.
+- [src/app/manifest.ts](src/app/manifest.ts) → `/manifest.webmanifest`. Standalone display, `theme_color: stone-900`, `background_color: stone-200`, icons pointing at the dynamic `/icon` and `/apple-icon` routes.
+
+**Icons + Open Graph image generators (Next's `ImageResponse`):**
+- [src/app/icon.tsx](src/app/icon.tsx) — 32×32 favicon: "rk" lowercase on stone-900.
+- [src/app/apple-icon.tsx](src/app/apple-icon.tsx) — 180×180: "RK / PAI" stacked with a red-orange hairline accent (matches the curtain loader's brand language).
+- [src/app/opengraph-image.tsx](src/app/opengraph-image.tsx) — default 1200×630 social card: stone-200 field, "RK PAI" wordmark, "Photography" caption, red-orange hairline, "rkpai.in" footer. Auto-wired into root `openGraph.images` via `metadataBase`. Uses Georgia (Satori can't pick up `next/font/google` fonts without bundling the woff2 — Georgia fallback is close enough to Playfair for the social-card scale).
+- [src/app/stories/[id]/opengraph-image.tsx](src/app/stories/[id]/opengraph-image.tsx) — **per-photo dynamic OG (the big win for social sharing)**: fetches the photo by slug from Convex, renders the photograph at 1200×630 with a bottom gradient + small "RK Pai · Photography" watermark. When someone shares `/stories/abc` on Facebook/Instagram/WhatsApp, the preview is *that bird photo*, not a generic site card. Falls back to a brand panel if the photo can't be fetched.
+
+**Page metadata + JSON-LD:**
+- [src/app/layout.tsx](src/app/layout.tsx) — added `metadataBase`, title `default` + `template`, applicationName, authors/creator/publisher, keywords, default OG + Twitter (`summary_large_image`), `robots: { index, follow, googleBot: { "max-image-preview": "large" } }`. Removed the manual `<link rel="icon" href="/favicon.ico">` from `<head>` — Next now auto-emits the icon links from `app/icon.tsx`/`apple-icon.tsx`. Injects site-level `WebSite + Person` JSON-LD via the new [src/components/JsonLd.tsx](src/components/JsonLd.tsx) helper (XSS-safe: `<` escaped to `<` per the [Next JSON-LD guide](https://nextjs.org/docs/app/guides/json-ld)).
+- [src/app/stories/page.tsx](src/app/stories/page.tsx) — `metadata` with title "Stories" (template → "Stories · Rk Pai Photography"), description, canonical, OG/Twitter. Injects `CollectionPage` JSON-LD.
+- [src/app/stories/[id]/page.tsx](src/app/stories/[id]/page.tsx) — `generateMetadata` rewritten: title from `photo.alt`, description from `photo.story` (clamped to 160 chars), canonical, OG `type: "article"` with `publishedTime` + `authors`, Twitter card. OG image auto-wired from the sibling `opengraph-image.tsx`. Injects `Photograph` JSON-LD with `name`, `description`, `caption`, `contentUrl`, `thumbnailUrl`, `width/height`, `datePublished`, `creator/copyrightHolder/author = Person`, `inLanguage`, and `contentLocation`/`locationCreated` (when `photo.location` is set). The `Photograph` schema (a real schema.org type) is what Google looks for to surface a photo with proper credit + caption in Image Search results.
+- [src/app/album/layout.tsx](src/app/album/layout.tsx) NEW — `/album/page.jsx` is `"use client"` (R3F `<Canvas>`) so it can't export `metadata`; the album's metadata + canonical + OG sit in a sibling server-component layout instead. (Same pattern as `admin/layout.tsx`'s `robots: noindex`.)
+
+**Notes / non-decisions:**
+- **DNS-verified GSC** → no `verification` field on the layout metadata.
+- **www, not apex** → submit `/sitemap.xml` to GSC under the `https://www.rkpai.in` property; do a 301 from apex to www at the DNS/host level (standard).
+- `Person.sameAs` includes the user's Facebook + Instagram — helps Google's knowledge graph link the site to the broader online identity.
+- The `Projects.tsx` home-page section was migrated to `<TransitionLink>` earlier this session (was `<a>` hard-nav); SEO-wise that's still a plain anchor `<a>` in the rendered HTML, so crawlable.
+- **Build not run here** — `next dev` is up (PID 1577), and CONTEXT.md §9 warns running `pnpm run build` under a live dev server can leave a half-written `.next/`. `npx tsc --noEmit` is clean across the new files. Verify with a real production build after restarting `next dev` (or after deploy).
+
+**After deploy, in Google Search Console:**
+1. Submit the sitemap (`https://www.rkpai.in/sitemap.xml`).
+2. Use Inspect URL on a couple of `/stories/[slug]` pages to confirm Google sees the rendered HTML + Open Graph + JSON-LD.
+3. Run a few URLs through [Google's Rich Results Test](https://search.google.com/test/rich-results) to confirm the `Photograph`/`WebSite`/`CollectionPage` schemas validate.
+
 ### 2026-05-13 — Tuned the curtain wipe: smoother timing + proper editorial typography
 
 Polish pass on the curtain-wipe loader from the previous entry.
