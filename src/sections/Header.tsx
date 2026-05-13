@@ -106,15 +106,6 @@ const Header: FC = () => {
     }),
   };
 
-  const Line = (props: any) => (
-    <motion.line
-      strokeWidth="2"
-      stroke="currentColor"
-      strokeLinecap="round"
-      {...props}
-    />
-  );
-
   return (
     <header className="fixed top-0 left-0 w-full z-50">
       <motion.div
@@ -190,35 +181,29 @@ const Header: FC = () => {
               }`}
               onClick={() => setIsOpen(!isOpen)}
               aria-label="Toggle menu"
+              aria-expanded={isOpen}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <Line
-                  x1="4"
-                  y1="8"
-                  x2="20"
-                  y2="8"
-                  variants={{
-                    closed: { rotate: 0, translateY: 0 },
-                    open: { rotate: 45, translateY: 6 },
-                  }}
-                  animate={isOpen ? "open" : "closed"}
-                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                  transformOrigin="center"
+              {/* Hamburger ⇄ X — two CSS-transformed bars. HTML elements rotate
+                  around their own centre in every browser/build mode; an SVG
+                  <line>'s transform-origin does not (it defaults to the SVG
+                  view-box), which is why the old <motion.line> version didn't
+                  form an X on the deployed site. */}
+              <span className="relative block h-4 w-5">
+                <span
+                  className={`absolute left-0 top-[2px] block h-0.5 w-5 rounded-full transition-all duration-[400ms] ease-in-out ${
+                    isOpen
+                      ? "translate-y-[5px] rotate-45 bg-stone-200"
+                      : "bg-stone-900"
+                  }`}
                 />
-                <Line
-                  x1="4"
-                  y1="16"
-                  x2="20"
-                  y2="16"
-                  variants={{
-                    closed: { rotate: 0, translateY: 0 },
-                    open: { rotate: -45, translateY: -2 },
-                  }}
-                  animate={isOpen ? "open" : "closed"}
-                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                  transformOrigin="center"
+                <span
+                  className={`absolute bottom-[2px] left-0 block h-0.5 w-5 rounded-full transition-all duration-[400ms] ease-in-out ${
+                    isOpen
+                      ? "-translate-y-[5px] -rotate-45 bg-stone-200"
+                      : "bg-stone-900"
+                  }`}
                 />
-              </svg>
+              </span>
             </button>
             <button
               className={`hidden md:inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium 
