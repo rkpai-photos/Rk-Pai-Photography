@@ -1,153 +1,222 @@
-/* eslint-disable */
-// @ts-nocheck
 "use client";
-import { MorphingText } from "@/components/ui/morphing-text";
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+
+// Auto-rotating tile grid for the landing page. Four columns, each
+// cross-fading through a small set of photos with a staggered cadence so they
+// don't all flip in lockstep. Pulls from the Convex-backed `photos` prop and
+// falls back to the hard-coded /public/images/birdN.jpg set when the prop is
+// empty (fresh deploy, or a build before `convex dev` has run).
+//
+// Why CSS opacity instead of AnimatePresence: the previous implementation
+// re-mounted the <Image> on every index change (key={src} inside
+// AnimatePresence). next/image then re-started its decode from scratch, and
+// during the transition the bg-stone-200 site background leaked through the
+// dim overlay — that was the "gray placeholder" bug. Here all slides stay
+// mounted as absolutely-positioned siblings; only their opacity flips, so the
+// next image is already decoded before it becomes the visible one.
+
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { MorphingText } from "@/components/ui/morphing-text";
+import type { Photo } from "@/lib/photo";
 
-const texts = ["Vision", "Lens", "Capture", "Focus", "Essence", "Glimpse"];
-const PortfolioGrid = () => {
-  const portfolioData = [
-    {
-      id: 1,
-      images: ["/images/bird1.jpg", "/images/bird2.jpg", "/images/bird3.jpg"],
-      height: 600,
-      position: "up",
-      title: "Woodland Wonders",
-      description: "Capturing avian life in forest settings",
-    },
-    {
-      id: 2,
-      images: ["/images/bird4.jpg", "/images/bird5.jpg", "/images/bird6.jpg"],
-      height: 600,
-      position: "down",
-      title: "Wetland Residents",
-      description: "Intimate moments of water-dwelling birds",
-    },
-    {
-      id: 3,
-      images: ["/images/bird7.jpg", "/images/bird8.jpg", "/images/bird9.jpg"],
-      height: 600,
-      position: "up",
-      title: "Migratory Journeys",
-      description: "Birds in flight across vast landscapes",
-    },
-    {
-      id: 4,
-      images: [
-        "/images/bird12.jpg",
-        "/images/bird11.jpg",
-        "/images/bird10.jpg",
-      ],
-      height: 600,
-      position: "down",
-      title: "Urban Dwellers",
-      description: "Birds adapting to city environments",
-    },
-  ];
+const MORPHING_TEXTS = [
+  "Vision",
+  "Lens",
+  "Capture",
+  "Focus",
+  "Essence",
+  "Glimpse",
+];
 
-  const [currentIndices, setCurrentIndices] = useState(
-    Array(portfolioData.length).fill(0),
-  );
+/** How long each slide stays fully visible before the crossfade starts. */
+const SLIDE_MS = 5000;
+/** Per-tile phase offset — tiles start their rotation 1.25s apart. */
+const STAGGER_MS = 1250;
 
-  const [isMobile, setIsMobile] = useState(false);
+type Slide = { src: string; alt: string; caption?: string };
+type Tile = { position: "up" | "down"; slides: Slide[] };
 
+/** Static fallback used when no Convex photos are available (build before
+ *  convex dev / empty gallery). Files live in /public/images. */
+const FALLBACK_TILES: Tile[] = [
+  {
+    position: "up",
+    slides: [
+      { src: "/images/bird1.jpg", alt: "Woodland Wonders", caption: "Capturing avian life in forest settings" },
+      { src: "/images/bird2.jpg", alt: "Woodland Wonders", caption: "Capturing avian life in forest settings" },
+      { src: "/images/bird3.jpg", alt: "Woodland Wonders", caption: "Capturing avian life in forest settings" },
+    ],
+  },
+  {
+    position: "down",
+    slides: [
+      { src: "/images/bird4.jpg", alt: "Wetland Residents", caption: "Intimate moments of water-dwelling birds" },
+      { src: "/images/bird5.jpg", alt: "Wetland Residents", caption: "Intimate moments of water-dwelling birds" },
+      { src: "/images/bird6.jpg", alt: "Wetland Residents", caption: "Intimate moments of water-dwelling birds" },
+    ],
+  },
+  {
+    position: "up",
+    slides: [
+      { src: "/images/bird7.jpg", alt: "Migratory Journeys", caption: "Birds in flight across vast landscapes" },
+      { src: "/images/bird8.jpg", alt: "Migratory Journeys", caption: "Birds in flight across vast landscapes" },
+      { src: "/images/bird9.jpg", alt: "Migratory Journeys", caption: "Birds in flight across vast landscapes" },
+    ],
+  },
+  {
+    position: "down",
+    slides: [
+      { src: "/images/bird10.jpg", alt: "Urban Dwellers", caption: "Birds adapting to city environments" },
+      { src: "/images/bird11.jpg", alt: "Urban Dwellers", caption: "Birds adapting to city environments" },
+      { src: "/images/bird12.jpg", alt: "Urban Dwellers", caption: "Birds adapting to city environments" },
+    ],
+  },
+];
+
+function truncate(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** Round-robin photos across N tiles so each tile gets a variety, not a
+ *  sequential clump. (Tile 0 = photos 0, 4, 8; tile 1 = photos 1, 5, 9; …) */
+function buildTilesFromPhotos(photos: Photo[], tileCount = 4): Tile[] {
+  const usable = photos.filter((p) => p.src || p.image_url);
+  if (usable.length < tileCount) return FALLBACK_TILES;
+
+  const buckets: Slide[][] = Array.from({ length: tileCount }, () => []);
+  usable.forEach((p, i) => {
+    buckets[i % tileCount].push({
+      src: p.src || p.image_url,
+      alt: p.alt || "Wildlife photograph",
+      caption: p.location || (p.story ? truncate(p.story, 80) : undefined),
+    });
+  });
+
+  // A tile with one slide doesn't rotate — fine for very small photo sets.
+  return buckets.map((slides, i) => ({
+    position: i % 2 === 0 ? "up" : "down",
+    slides,
+  }));
+}
+
+function FadeTile({
+  tile,
+  tileIndex,
+  priority,
+}: {
+  tile: Tile;
+  tileIndex: number;
+  priority: boolean;
+}) {
+  const [idx, setIdx] = useState(0);
+  const count = tile.slides.length;
+
+  // Rotate, staggered per-tile. The first tile starts after SLIDE_MS, each
+  // subsequent tile is offset by STAGGER_MS so they don't all flip together.
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    const intervals = portfolioData.map(() =>
-      setInterval(
-        () => {
-          setCurrentIndices((prevIndices) =>
-            prevIndices.map((index, i) => {
-              const randomChance = Math.random() > 0.5;
-              return randomChance
-                ? (index + 1) % portfolioData[i].images.length
-                : index;
-            }),
-          );
-        },
-        Math.random() * 2000 + 3000,
-      ),
-    );
+    if (count <= 1) return;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const startId = window.setTimeout(() => {
+      setIdx((i) => (i + 1) % count);
+      intervalId = setInterval(() => {
+        setIdx((i) => (i + 1) % count);
+      }, SLIDE_MS);
+    }, SLIDE_MS + STAGGER_MS * tileIndex);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      intervals.forEach((interval) => clearInterval(interval));
+      window.clearTimeout(startId);
+      if (intervalId !== undefined) clearInterval(intervalId);
     };
-  }, []);
+  }, [count, tileIndex]);
+
+  // Warm the cache for the non-priority slides on idle so the first crossfade
+  // isn't the first time the browser has seen those bytes. next/image will
+  // also lazy-load them once the tile enters the viewport — this is a belt
+  // for the slow-connection case.
+  useEffect(() => {
+    if (typeof window === "undefined" || count <= 1) return;
+    type IdleWindow = Window & {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    const w = window as IdleWindow;
+    const ric = w.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
+    const cic = w.cancelIdleCallback ?? window.clearTimeout;
+    const handle = ric(() => {
+      tile.slides.slice(1).forEach((slide) => {
+        const img = new window.Image();
+        img.src = slide.src;
+      });
+    });
+    return () => cic(handle as number);
+  }, [tile.slides, count]);
 
   return (
-    <div className="relative w-full min-h-screen pt-20 p-4 md:p-8 bg-transparent">
-      {/* Simplified SVG Background */}
-
-      <div className="relative z-10 max-w-[1600px] mx-auto">
-        <h1 className="text-4xl mt-5 md:text-6xl  text-center text-slate-900 mb-16 tracking-tight">
-          <MorphingText texts={texts} />
-        </h1>
-
+    <div
+      className={`relative group overflow-hidden rounded-2xl shadow-xl bg-stone-300 h-[420px] sm:h-[500px] lg:h-[600px] ${
+        tile.position === "down" ? "md:mt-12 lg:mt-24" : ""
+      } transition-transform duration-500 ease-out hover:scale-[1.02]`}
+    >
+      {tile.slides.map((slide, i) => (
         <div
-          className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-4"} gap-8 md:gap-12 lg:gap-16`}
+          key={slide.src}
+          aria-hidden={i !== idx}
+          className={`absolute inset-0 transition-opacity ease-out duration-[1200ms] ${
+            i === idx ? "opacity-100" : "opacity-0"
+          }`}
         >
-          {portfolioData.map((section, index) => (
-            <motion.div
-              key={section.id}
-              className="relative group overflow-hidden rounded-2xl shadow-xl"
-              style={{
-                height: `${section.height}px`,
-                marginTop: isMobile
-                  ? "0px"
-                  : section.position === "down"
-                    ? "96px"
-                    : "0px",
-              }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeInOut" }}
-              whileHover={{
-                scale: 1.05,
-                transition: { duration: 0.3 },
-              }}
-            >
-              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-all duration-300 z-10" />
-              <div className="relative w-full h-full">
-                <AnimatePresence>
-                  <motion.div
-                    key={section.images[currentIndices[index]]}
-                    className="absolute w-full h-full"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.05 }}
-                    transition={{ duration: 0.8, ease: "easeInOut" }}
-                  >
-                    <Image
-                      src={section.images[currentIndices[index]]}
-                      alt={`Portfolio image ${index + 1}`}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 25vw"
-                      priority={index === 0}
-                      className="object-cover rounded-2xl"
-                    />
-                    <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black/70 to-transparent z-20 rounded-b-2xl">
-                      <div className="absolute bottom-4 left-4 text-white">
-                        <h2 className="text-xl font-bold">{section.title}</h2>
-                        <p className="text-sm opacity-80">
-                          {section.description}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </motion.div>
+          <Image
+            src={slide.src}
+            alt={slide.alt}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            priority={priority && i === 0}
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+          <div className="absolute bottom-5 left-5 right-5 text-white">
+            <h2 className="text-lg md:text-xl font-medium">{slide.alt}</h2>
+            {slide.caption && (
+              <p className="text-xs md:text-sm opacity-80 mt-1 line-clamp-2">
+                {slide.caption}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+      {/* Subtle hover dim layered above the slides. */}
+      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500 pointer-events-none" />
+    </div>
+  );
+}
+
+interface SlideShowProps {
+  photos?: Photo[];
+}
+
+export default function SlideShow({ photos }: SlideShowProps) {
+  const tiles = useMemo(
+    () => buildTilesFromPhotos(photos ?? []),
+    [photos],
+  );
+
+  return (
+    <section className="relative w-full pt-20 p-4 md:p-8">
+      <div className="relative max-w-[1600px] mx-auto">
+        <h1 className="text-4xl mt-5 md:text-6xl text-center text-slate-900 mb-16 tracking-tight">
+          <MorphingText texts={MORPHING_TEXTS} />
+        </h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 lg:gap-16">
+          {tiles.map((tile, i) => (
+            <FadeTile
+              key={i}
+              tile={tile}
+              tileIndex={i}
+              priority={i === 0}
+            />
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
-};
-
-export default PortfolioGrid;
+}
