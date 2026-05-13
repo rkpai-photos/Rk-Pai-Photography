@@ -21,9 +21,12 @@ import {
 } from "three";
 import { degToRad } from "three/src/math/MathUtils.js";
 
-// Constants
-const PAGE_WIDTH = 1.28;
-const PAGE_HEIGHT = 1.71;
+// Constants — pages are 3:2 landscape (1.71 × 1.14) to match DSLR/wildlife
+// photography aspect ratio. Previously 3:4 portrait (1.28 × 1.71); switching
+// keeps the bounding diagonal nearly identical (2.06 vs 2.14) so the camera
+// framing + per-breakpoint scale in Experience.jsx didn't need to change.
+const PAGE_WIDTH = 1.71;
+const PAGE_HEIGHT = 1.14;
 const PAGE_DEPTH = 0.003;
 const PAGE_SEGMENTS = 30;
 const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
@@ -89,8 +92,29 @@ const skinWeights = [];
 for (let i = 0; i < position.count; i++) {
   vertex.fromBufferAttribute(position, i);
   const x = vertex.x;
-  const skinIndex = Math.max(0, Math.floor(x / SEGMENT_WIDTH));
-  let skinWeight = (x % SEGMENT_WIDTH) / SEGMENT_WIDTH;
+  // Each vertex blends between bones[skinIndex] and bones[skinIndex+1]. There
+  // are PAGE_SEGMENTS+1 bones total (indices 0..PAGE_SEGMENTS), so skinIndex+1
+  // must be ≤ PAGE_SEGMENTS — i.e. skinIndex ≤ PAGE_SEGMENTS-1. At the far
+  // edge of the page (x ≈ PAGE_WIDTH), Math.floor(x / SEGMENT_WIDTH) can land
+  // exactly on PAGE_SEGMENTS depending on floating-point rounding of the
+  // division (1.71/30 rounds *up* at the edge; the old 1.28/30 happened to
+  // round down, which is why this latent bug only surfaced after the 3:4 →
+  // 3:2 dimension change). The crash was "skeleton.bones[boneIndex] is
+  // undefined" inside Three's SkinnedMesh update.
+  const rawIdx = Math.floor(x / SEGMENT_WIDTH);
+  let skinIndex;
+  let skinWeight;
+  if (rawIdx >= PAGE_SEGMENTS) {
+    // Past the last bone — snap the vertex to bone PAGE_SEGMENTS.
+    skinIndex = PAGE_SEGMENTS - 1;
+    skinWeight = 1;
+  } else if (rawIdx < 0) {
+    skinIndex = 0;
+    skinWeight = 0;
+  } else {
+    skinIndex = rawIdx;
+    skinWeight = (x % SEGMENT_WIDTH) / SEGMENT_WIDTH;
+  }
   skinIndexes.push(skinIndex, skinIndex + 1, 0, 0);
   skinWeights.push(1 - skinWeight, skinWeight, 0, 0);
 }
