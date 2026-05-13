@@ -109,19 +109,36 @@ const Test: FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="space-y-6 text-lg md:text-xl leading-relaxed text-stone-800"
             >
-              <p>
-                Nature is my greatest inspiration, and wildlife photography is
-                my way of celebrating its beauty. Through my lens, I capture
-                birds, wildlife, and moments from nature that inspire peace,
-                wonder, and conservation. Every photograph tells a story of
-                patience, passion, and a deep connection with the natural
-                world.
-              </p>
+              {/* Bio: same typography as the previous version (text-lg md:text-2xl,
+                  space-y-4, continuation paragraphs hung-indented by ml-10 md:ml-12,
+                  one phrase carrying the animated breathing underline) — just the
+                  new copy split across three sentences for rhythm. */}
+              <div className="text-lg md:text-2xl space-y-4">
+                <p>
+                  Nature is my greatest inspiration, and{" "}
+                  <motion.span
+                    initial={{ opacity: 0.5 }}
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="italic underline underline-offset-4"
+                  >
+                    wildlife photography
+                  </motion.span>{" "}
+                  is my way of celebrating its beauty.
+                </p>
+                <p className="ml-10 md:ml-12">
+                  Through my lens, I capture birds, wildlife, and moments from
+                  nature that inspire peace, wonder, and conservation.
+                </p>
+                <p className="ml-10 md:ml-12">
+                  Every photograph tells a story of patience, passion, and a
+                  deep connection with the natural world.
+                </p>
+              </div>
 
-              <blockquote className="relative mt-2 border-l-2 border-red-orange-500 pl-5 md:pl-6">
-                <p className="font-playfair italic text-xl md:text-2xl text-stone-800 leading-snug">
+              <blockquote className="relative mt-8 border-l-2 border-red-orange-500 pl-5 md:pl-6">
+                <p className="font-playfair italic text-xl md:text-2xl leading-snug">
                   &ldquo;Every photograph is not just an image &mdash; it is a
                   silent conversation between nature and the soul.&rdquo;
                 </p>
