@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Archivo, Playfair_Display } from "next/font/google";
+import { Archivo, Playfair_Display, Playwrite_GB_S } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 
 import ConvexClientProvider from "@/components/ConvexClientProvider";
@@ -34,6 +34,17 @@ const playfair = Playfair_Display({
   weight: ["400", "700", "800"],
   subsets: ["latin"],
   variable: "--font-playfair",
+});
+
+// Cursive "learning-to-write" script used for the About-section bio paragraphs
+// (CONTEXT.md §11). Playwrite GB S = Playwrite Great Britain SemiJoined; the
+// family is inherently cursive (no separate italic style — slant is baked in),
+// so the `italic` utility we pair this with on the paragraph is mostly for
+// spec alignment. Weight 300 is at the lighter end of the 100–400 range.
+const playwrite = Playwrite_GB_S({
+  display: "swap",
+  weight: ["300"],
+  variable: "--font-playwrite",
 });
 
 // Site-wide SEO defaults. Every page inherits these and overrides only what
@@ -102,7 +113,7 @@ export default function RootLayout({
     <ConvexAuthNextjsServerProvider>
       <html lang="en">
         <body
-          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} ${playfair.variable} font-sans`}
+          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} ${playfair.variable} ${playwrite.variable} font-sans`}
         >
           <JsonLd data={siteJsonLd} />
           <ConvexClientProvider>{children}</ConvexClientProvider>
