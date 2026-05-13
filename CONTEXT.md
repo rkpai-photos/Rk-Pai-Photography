@@ -209,6 +209,10 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
 
+### 2026-05-13 — /stories/[id] page background now matches the home page
+
+The photo-detail page (and its "Photo Not Found" fallback) used a pastel `bg-gradient-to-br from-blue-50 via-green-50 to-purple-50` (plus a layer of blurred blue/purple/green blobs) — out of step with the rest of the site, which is the body's flat `bg-stone-200`. Swapped both wrappers to `bg-stone-200` and removed the decorative-blob `<div>`. Left the white glass content cards (`bg-white/60` etc.) — they read fine on `stone-200`; their unused `dark:` variants are unchanged (see §8). No text-colour changes needed (the page's text is the light-mode `text-gray-{500,700,800}` variants, still readable on a light bg).
+
 ### 2026-05-13 — Fixed the header hamburger icon not morphing into an X
 
 Bug (reported on the deployed site): the two-line hamburger in [src/sections/Header.tsx](src/sections/Header.tsx) didn't turn into an X when the menu opened. Cause — it was an `<svg>` with two `<motion.line>`s animating `rotate`/`translateY` with `transformOrigin="center"`. Two compounding problems: (1) for SVG geometry elements `transform-origin` defaults to the *view-box*, not the element's own bounding box (and passing `transformOrigin` as a prop to `motion.line` doesn't reliably set it anyway) — so the lines rotated around the wrong pivot and swung off-canvas instead of crossing; this is browser-dependent (Safari ≠ Chrome), the classic "fine in dev, broken when deployed" shape. (2) `Line` was defined *inside* `Header`, so every re-render gave it a new function identity → React remounted the `<line>`s on each render → framer-motion's animation state was thrown away.

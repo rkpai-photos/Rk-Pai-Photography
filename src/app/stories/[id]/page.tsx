@@ -33,7 +33,7 @@ export default async function PhotoDetailPage({
 
   if (!photo) {
     return (
-      <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 p-4 md:p-8 pt-28 md:pt-36 font-sans overflow-hidden flex items-center justify-center">
+      <div className="relative min-h-screen bg-stone-200 p-4 md:p-8 pt-28 md:pt-36 font-sans overflow-hidden flex items-center justify-center">
         <Header />
         <div className="text-center backdrop-blur-md bg-white/40 dark:bg-gray-800/40 rounded-3xl p-8 border border-white/30 shadow-lg max-w-md mx-auto">
           <h1 className="text-3xl font-bold text-red-500 mb-4">
@@ -48,14 +48,8 @@ export default async function PhotoDetailPage({
   }
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 p-4 md:p-8 pt-28 md:pt-36 font-sans overflow-hidden">
+    <div className="relative min-h-screen bg-stone-200 p-4 md:p-8 pt-28 md:pt-36 font-sans overflow-hidden">
       <Header />
-      {/* Decorative elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-blue-300/20 blur-3xl"></div>
-        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 rounded-full bg-purple-300/20 blur-3xl"></div>
-        <div className="absolute top-1/2 right-1/4 w-80 h-80 rounded-full bg-green-300/20 blur-3xl"></div>
-      </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="backdrop-blur-md bg-white/60 dark:bg-gray-800/60 rounded-3xl p-6 md:p-8 mb-8 border border-white/50 shadow-xl transition-all duration-300 hover:shadow-2xl">
