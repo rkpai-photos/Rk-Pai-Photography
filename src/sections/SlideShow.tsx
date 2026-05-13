@@ -1,21 +1,28 @@
 "use client";
 
-// Auto-rotating tile grid for the landing page. Four columns, each
-// cross-fading through a small set of photos with a staggered cadence so they
-// don't all flip in lockstep. Pulls from the Convex-backed `photos` prop and
-// falls back to the hard-coded /public/images/birdN.jpg set when the prop is
-// empty (fresh deploy, or a build before `convex dev` has run).
+// Tile grid for the landing page, branching by viewport:
 //
-// Why CSS opacity instead of AnimatePresence: the previous implementation
-// re-mounted the <Image> on every index change (key={src} inside
-// AnimatePresence). next/image then re-started its decode from scratch, and
-// during the transition the bg-stone-200 site background leaked through the
-// dim overlay — that was the "gray placeholder" bug. Here all slides stay
-// mounted as absolutely-positioned siblings; only their opacity flips, so the
-// next image is already decoded before it becomes the visible one.
+//   MOBILE (<md, <768px): one static photo per tile, no rotation. Mobile has
+//     a tight CPU/bandwidth budget and on fast scroll the old auto-crossfade
+//     caused two visible problems — frame drops while scrolling (4 setInterval
+//     timers + 12 mounted <Image> elements + setState every 5s) and images
+//     "missing then popping in" (next/image's IntersectionObserver firing only
+//     after the tile was already on-screen). Showing one photo per tile drops
+//     us to 4 <Image>s with no timers, and tiles 1–3 are eager-loaded so they
+//     don't pop in on scroll.
+//
+//   TABLET / DESKTOP (md+, ≥768px): the staggered opacity crossfade through
+//     all the tile's slides. All slides for a tile stay mounted as
+//     absolute-positioned siblings; only their opacity flips, so the next
+//     image is already decoded before becoming visible — the original "gray
+//     placeholder" fix from b5c59e2.
+//
+// Photos come from the Convex-backed `photos` prop (round-robin across 4
+// tiles for variety); falls back to /public/images/birdN.jpg when no photos
+// are available (fresh deploy / build before `convex dev`).
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MorphingText } from "@/components/ui/morphing-text";
 import type { Photo } from "@/lib/photo";
 
@@ -99,22 +106,54 @@ function buildTilesFromPhotos(photos: Photo[], tileCount = 4): Tile[] {
   }));
 }
 
+const MEDIA_QUERY = "(min-width: 768px)";
+
+/**
+ * Returns `true` once the viewport is at the md+ breakpoint (≥768px).
+ * `useSyncExternalStore` is the React-blessed way to subscribe to an external
+ * store like `matchMedia` — the alternative (useState + useEffect with
+ * setState) trips the React Compiler's `react-hooks/set-state-in-effect`
+ * rule. The server snapshot is `false` so SSR + first client render agree
+ * (no hydration mismatch); on desktop it flips to true after hydration,
+ * causing one re-render that mounts the crossfade-only slides.
+ */
+function useIsDesktop(): boolean {
+  return useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined") return () => {};
+      const mq = window.matchMedia(MEDIA_QUERY);
+      mq.addEventListener("change", callback);
+      return () => mq.removeEventListener("change", callback);
+    },
+    () => window.matchMedia(MEDIA_QUERY).matches,
+    () => false,
+  );
+}
+
 function FadeTile({
   tile,
   tileIndex,
   priority,
+  isDesktop,
 }: {
   tile: Tile;
   tileIndex: number;
   priority: boolean;
+  isDesktop: boolean;
 }) {
+  // Mobile mounts only the first slide; desktop mounts all of them as the
+  // crossfade stack. Cutting the mount count by ~3× is the single biggest
+  // mobile win — fewer <Image> components for React to reconcile, fewer
+  // requests, less decode work during fast scroll.
+  const slides = isDesktop ? tile.slides : tile.slides.slice(0, 1);
   const [idx, setIdx] = useState(0);
-  const count = tile.slides.length;
+  const count = slides.length;
 
-  // Rotate, staggered per-tile. The first tile starts after SLIDE_MS, each
-  // subsequent tile is offset by STAGGER_MS so they don't all flip together.
+  // Rotate, staggered per-tile — DESKTOP ONLY. On mobile there's nothing to
+  // rotate to (only slide 0 is mounted) and we explicitly don't want a 5-second
+  // setInterval running per tile while the user scrolls.
   useEffect(() => {
-    if (count <= 1) return;
+    if (!isDesktop || count <= 1) return;
     let intervalId: ReturnType<typeof setInterval> | undefined;
     const startId = window.setTimeout(() => {
       setIdx((i) => (i + 1) % count);
@@ -127,20 +166,21 @@ function FadeTile({
       window.clearTimeout(startId);
       if (intervalId !== undefined) clearInterval(intervalId);
     };
-  }, [count, tileIndex]);
+  }, [isDesktop, count, tileIndex]);
 
-  // Warm the cache for the non-priority slides on idle so the first crossfade
-  // isn't the first time the browser has seen those bytes. next/image will
-  // also lazy-load them once the tile enters the viewport — this is a belt
-  // for the slow-connection case.
+  // Idle-preload non-priority slides — DESKTOP ONLY. The whole point of this
+  // belt is to warm the cache before the first crossfade; mobile has no
+  // crossfade so there's nothing to warm.
   useEffect(() => {
-    if (typeof window === "undefined" || count <= 1) return;
+    if (!isDesktop || tile.slides.length <= 1) return;
     type IdleWindow = Window & {
       requestIdleCallback?: (cb: () => void) => number;
       cancelIdleCallback?: (h: number) => void;
     };
     const w = window as IdleWindow;
-    const ric = w.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
+    const ric =
+      w.requestIdleCallback ??
+      ((cb: () => void) => window.setTimeout(cb, 1500));
     const cic = w.cancelIdleCallback ?? window.clearTimeout;
     const handle = ric(() => {
       tile.slides.slice(1).forEach((slide) => {
@@ -149,43 +189,59 @@ function FadeTile({
       });
     });
     return () => cic(handle as number);
-  }, [tile.slides, count]);
+  }, [isDesktop, tile.slides]);
 
   return (
     <div
       className={`relative group overflow-hidden rounded-2xl shadow-xl bg-stone-300 h-[420px] sm:h-[500px] lg:h-[600px] ${
         tile.position === "down" ? "md:mt-12 lg:mt-24" : ""
-      } transition-transform duration-500 ease-out hover:scale-[1.02]`}
+      } md:transition-transform md:duration-500 md:ease-out md:hover:scale-[1.02]`}
     >
-      {tile.slides.map((slide, i) => (
-        <div
-          key={slide.src}
-          aria-hidden={i !== idx}
-          className={`absolute inset-0 transition-opacity ease-out duration-[1200ms] ${
-            i === idx ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <Image
-            src={slide.src}
-            alt={slide.alt}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            priority={priority && i === 0}
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-          <div className="absolute bottom-5 left-5 right-5 text-white">
-            <h2 className="text-lg md:text-xl font-medium">{slide.alt}</h2>
-            {slide.caption && (
-              <p className="text-xs md:text-sm opacity-80 mt-1 line-clamp-2">
-                {slide.caption}
-              </p>
-            )}
+      {slides.map((slide, i) => {
+        // priority on tile 0 / slide 0 (LCP). For the remaining mobile tiles
+        // (1–3) — which are below the fold on first paint but the user will
+        // scroll through within a couple of viewports — set loading="eager" so
+        // they start fetching alongside the page rather than waiting for an
+        // IntersectionObserver hit during fast scroll. Desktop non-priority
+        // slides keep next/image's default lazy + our idle-preload belt.
+        const isLcp = priority && i === 0;
+        const mobileEager = !isDesktop && !isLcp;
+        return (
+          <div
+            key={slide.src}
+            aria-hidden={i !== idx}
+            className={`absolute inset-0 ${
+              isDesktop
+                ? `transition-opacity ease-out duration-[1200ms] ${
+                    i === idx ? "opacity-100" : "opacity-0"
+                  }`
+                : ""
+            }`}
+          >
+            <Image
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              priority={isLcp}
+              loading={mobileEager ? "eager" : undefined}
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+            <div className="absolute bottom-5 left-5 right-5 text-white">
+              <h2 className="text-lg md:text-xl font-medium">{slide.alt}</h2>
+              {slide.caption && (
+                <p className="text-xs md:text-sm opacity-80 mt-1 line-clamp-2">
+                  {slide.caption}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
-      {/* Subtle hover dim layered above the slides. */}
-      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-500 pointer-events-none" />
+        );
+      })}
+      {/* Subtle hover dim layered above the slides — hover-only, so mobile
+          doesn't pay for it. */}
+      <div className="absolute inset-0 bg-black/10 md:group-hover:bg-black/0 transition-colors duration-500 pointer-events-none" />
     </div>
   );
 }
@@ -195,6 +251,7 @@ interface SlideShowProps {
 }
 
 export default function SlideShow({ photos }: SlideShowProps) {
+  const isDesktop = useIsDesktop();
   const tiles = useMemo(
     () => buildTilesFromPhotos(photos ?? []),
     [photos],
@@ -213,6 +270,7 @@ export default function SlideShow({ photos }: SlideShowProps) {
               tile={tile}
               tileIndex={i}
               priority={i === 0}
+              isDesktop={isDesktop}
             />
           ))}
         </div>
