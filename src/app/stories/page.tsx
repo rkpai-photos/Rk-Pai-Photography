@@ -1,4 +1,3 @@
-/* eslint-disable */
 // @ts-nocheck
 import type { Metadata } from "next";
 import { Suspense } from "react";

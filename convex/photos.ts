@@ -31,26 +31,6 @@ async function assertAdmin(ctx: QueryCtx | MutationCtx): Promise<void> {
   if (!email || !allow.includes(email)) throw new Error("Not authorized");
 }
 
-// One-time migration escape hatch (used ONLY by scripts/import-from-sheet.mjs):
-// if a `migrationToken` is supplied and matches the `MIGRATION_TOKEN` Convex env
-// var, the call is allowed without a logged-in user. Set MIGRATION_TOKEN only
-// for the duration of the import, then `npx convex env remove MIGRATION_TOKEN`.
-// This is intentionally narrow — it only applies to `generateUploadUrl` and
-// `create`, never to `update`/`remove`/`reorder`.
-async function assertAdminOrMigration(
-  ctx: MutationCtx,
-  migrationToken?: string,
-): Promise<void> {
-  if (
-    migrationToken &&
-    process.env.MIGRATION_TOKEN &&
-    migrationToken === process.env.MIGRATION_TOKEN
-  ) {
-    return;
-  }
-  await assertAdmin(ctx);
-}
-
 // ---------------------------------------------------------------------------
 // Public-facing photo shape: storage ids resolved to URLs so the frontend never
 // has to think about Convex storage.
@@ -96,9 +76,9 @@ export const getBySlug = query({
 // Step 1 of an upload: the client POSTs the file bytes to the returned URL,
 // gets back a storageId, then calls `create` (or `update`) with it.
 export const generateUploadUrl = mutation({
-  args: { migrationToken: v.optional(v.string()) },
-  handler: async (ctx, { migrationToken }) => {
-    await assertAdminOrMigration(ctx, migrationToken);
+  args: {},
+  handler: async (ctx) => {
+    await assertAdmin(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -115,10 +95,9 @@ export const create = mutation({
     location: v.optional(v.string()),
     createdAt: v.optional(v.string()),
     order: v.optional(v.number()),
-    migrationToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await assertAdminOrMigration(ctx, args.migrationToken);
+    await assertAdmin(ctx);
 
     const existing = await ctx.db
       .query("photos")

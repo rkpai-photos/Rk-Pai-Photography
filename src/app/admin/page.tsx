@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Photo CRUD dashboard. Replaces editing the old Google Sheet by hand.
 //

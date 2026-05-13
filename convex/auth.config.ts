@@ -1,4 +1,4 @@
-export default {
+const authConfig = {
   providers: [
     {
       // Convex sets CONVEX_SITE_URL automatically on every deployment.
@@ -7,3 +7,5 @@ export default {
     },
   ],
 };
+
+export default authConfig;

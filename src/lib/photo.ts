@@ -1,4 +1,3 @@
-/* eslint-disable */
 // @ts-nocheck
 //
 // Photo data layer. Backed by Convex (the `photos` table — see convex/schema.ts).

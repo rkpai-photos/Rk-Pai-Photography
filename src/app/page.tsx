@@ -1,4 +1,3 @@
-/* eslint-disable */
 // @ts-nocheck
 import Header from "@/sections/Header";
 import Hero from "@/sections/Hero";
