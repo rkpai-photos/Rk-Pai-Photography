@@ -34,7 +34,8 @@ Single Next.js app, public-facing. `/admin` is gated by **Convex Auth** (email +
 - **Icons:** `lucide-react` &nbsp;|&nbsp; **Fonts:** Archivo via `next/font/google` (`--font-archivo`, the Tailwind `sans` family) + Poppins imported via Google Fonts CSS in `globals.css`
 - **Lint/format:** ESLint (`next/core-web-vitals` + `next/typescript`), Prettier (`tabWidth: 2`)
 - **`googleapis`** was a devDependency for the one-time Google-Sheet import script — both removed on 2026-05-13 (see §11). `dotenv` was removed at the same time (its only consumer was that script).
-- **Vestigial deps still in `package.json`:** `lodash` (used in `UI.jsx` for `debounce` — that's the only use). The earlier DynamoDB/Prisma leftovers (`@prisma/client`, `prisma`, `aws-sdk`, `@aws-sdk/*`) and the unused `motion`/`split-type`/`class-variance-authority` have been removed (see §11).
+- **Admin UI primitives:** shadcn/ui (`button`, `input`, `label`, `textarea`, `sheet`, `alert-dialog`, `dropdown-menu`, `separator`, `skeleton`, `badge`, `sonner`) under [src/components/ui/](src/components/ui/), backed by `@radix-ui/react-*` + `class-variance-authority` + `sonner` + `next-themes`. Installed 2026-05-13 for the admin redesign; see §11. The public site doesn't use these — it uses its own bespoke `Button.tsx` + Tailwind primitives.
+- **Vestigial deps still in `package.json`:** `lodash` (used in `UI.jsx` for `debounce` — that's the only use). The earlier DynamoDB/Prisma leftovers (`@prisma/client`, `prisma`, `aws-sdk`, `@aws-sdk/*`) and the unused `motion`/`split-type` have been removed (see §11). `class-variance-authority` was also removed once but came back when shadcn primitives were installed (see §11, 2026-05-13 admin redesign).
 
 ## 3. Commands
 
@@ -72,9 +73,12 @@ src/
     globals.css        Tailwind layers + shadcn CSS vars + Poppins import + .fade-to-transparent util
     page.tsx           "/"  landing page (server component)
     admin/
-      layout.tsx       robots:noindex metadata for the /admin route
-      page.tsx         "/admin" — photo CRUD dashboard (client; <Authenticated> gate -> list/add/edit/delete; uploads to Convex storage; Sign out)
+      layout.tsx       robots:noindex + Sonner <Toaster/> (scoped to /admin* — not mounted on the public site)
+      page.tsx         "/admin" — thin auth-gate wrapper (Authenticated / Unauthenticated / AuthLoading) around <Dashboard/>
       login/page.tsx   "/admin/login" — Convex Auth email+password sign-in only; password show/hide toggle
+      _components/     Admin-only components (underscore prefix keeps Next from routing them):
+                       Dashboard, PhotoCard, PhotoFormSheet (FormBody keyed on photo._id), ImageDropzone,
+                       DeleteDialog, EmptyState, LoadingGrid, types.ts
     stories/
       page.tsx         "/stories" — masonry gallery of all photos (force-dynamic)
       [id]/
@@ -207,6 +211,28 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 ## 11. Conversation Log — engineering decisions & session summaries
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
+
+### 2026-05-13 — Admin UI redesign: shadcn-powered media-library studio
+
+User asked for a real UI/UX pass on the admin photo CRUD. Old `/admin` was a long single-column row list with plain `<button>`/`<input>` elements and inline-expanded edit forms. Replaced with a "studio media library" layout (option A in the brainstorm; refs: Cloudinary, Sanity Studio, Unsplash admin).
+
+**Layout shape.** Sticky white header (photo count + Add button + account menu) → search bar → responsive card grid (1/2/3 cols). Each card: square-ish image cover with hover-revealed dropdown menu (Edit / View on site / Delete), title + slug + location & dimensions badges beneath. Empty state has its own illustration + CTA; while loading the grid is six skeleton cards (not "Loading…" text).
+
+**Forms move to a side sheet.** Adding or editing a photo opens a right-side `<Sheet>` (Radix dialog under the hood). Inside: a 16:10 drag-and-drop image dropzone that doubles as the preview (existing image shown when editing; replaced when a new file is dropped), then form fields. Width and height auto-fill from the new file's natural dimensions but won't clobber a user-typed value. Cancel/Save in a sticky footer. Delete uses an `<AlertDialog>` with the photo's thumbnail in the body — proper confirm-before-destroy.
+
+**Toast feedback.** Sonner `<Toaster position="top-right" richColors closeButton />` is mounted in [src/app/admin/layout.tsx](src/app/admin/layout.tsx) (admin-scoped — public pages don't pay the portal cost). `toast.success` / `toast.error` calls replace the old error-banner pattern. The "Not authorized" failure from `assertAdmin` surfaces as a red toast.
+
+**New shadcn primitives installed** (`npx shadcn@latest add ...`): `button`, `input`, `label`, `textarea`, `sheet`, `alert-dialog`, `sonner`, `skeleton`, `badge`, `dropdown-menu`, `separator`. shadcn CLI installed the corresponding `@radix-ui/react-*` packages + `sonner` + `next-themes` (Sonner reads theme from next-themes; without a `<ThemeProvider>` it falls back to "system", which is fine for now). It did NOT install `class-variance-authority` despite the generated `button.tsx`/`sheet.tsx`/etc. importing it — installed manually via `pnpm add class-variance-authority`. Both lockfiles (pnpm + npm) re-synced per §3.
+
+**React Compiler gotchas hit + fixed.** Two `react-hooks/set-state-in-effect` errors during the build:
+- `PhotoFormSheet` originally used `useEffect(() => setForm(fromPhoto(photo)))` to hydrate the form when the sheet opened on a different photo — classic "sync state to props" anti-pattern. Refactored to the `key` pattern: the `<FormBody/>` child is rendered as `{open && <FormBody key={photo?._id ?? "new"} … />}`. React's key swap remounts the body and `useState(() => fromPhoto(photo))` initializes cleanly. Closing the sheet unmounts the body entirely, so half-typed state can't leak into the next session. The width/height auto-fill moved from a `useEffect([file])` into the file-change event handler — `setState` in an event callback is fine.
+- `ImageDropzone` used `useEffect` + `setPreviewUrl` to mirror `file`/`existingImageUrl` into a state. Replaced with a `useMemo` for the derived URL plus a cleanup-only `useEffect` that revokes blob URLs when they change or on unmount.
+
+**File structure.** Admin-only components live under [src/app/admin/_components/](src/app/admin/_components/) — the leading underscore keeps Next from treating them as routes. Files: `Dashboard.tsx`, `PhotoCard.tsx`, `PhotoFormSheet.tsx`, `ImageDropzone.tsx`, `DeleteDialog.tsx`, `EmptyState.tsx`, `LoadingGrid.tsx`, `types.ts`. The route `page.tsx` is now a thin auth-gate wrapper (39 lines, was 375).
+
+**Out of scope / follow-ups.** Drag-to-reorder isn't wired up (the `reorder` mutation already exists on the Convex side — needs `@dnd-kit/*` and a real UX pass; flagged for later). No bulk select/delete. No image alt-text suggestions. The hi-res favicon issue from the earlier session is unrelated — the admin avatar is just a static "A" disc for now.
+
+Verification: `pnpm run lint` → 0 errors, 1 pre-existing unrelated warning; `npx tsc --noEmit` → clean.
 
 ### 2026-05-13 — Replaced "rk" generated icons with the supplied favicon.ico
 
