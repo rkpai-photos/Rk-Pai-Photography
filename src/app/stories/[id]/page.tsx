@@ -2,7 +2,7 @@
 // @ts-nocheck
 import type { Metadata } from "next";
 
-import { fetchPhotoBySlug, fetchPhotos } from "@/lib/photo";
+import { fetchPhotoBySlug } from "@/lib/photo";
 import Image from "next/image";
 import { Camera, BookOpen, Calendar, MapPin } from "lucide-react";
 import Header from "@/sections/Header";
@@ -75,8 +75,7 @@ export default async function PhotoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const photos = await fetchPhotos();
-  const photo = photos.find((p) => p.id === id);
+  const photo = await fetchPhotoBySlug(id);
 
   if (!photo) {
     return (
