@@ -105,29 +105,27 @@ const Test: FC = () => {
               RK PAI
             </motion.h1>
 
-            <motion.div>
-              <div className="text-lg md:text-2xl space-y-4">
-                <p>
-                  <span className="text-5xl">&ldquo;</span>
-                  &emsp; Passionate&nbsp;
-                  <motion.span
-                    initial={{ opacity: 0.5 }}
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="italic underline underline-offset-4"
-                  >
-                    wildlife photographer
-                  </motion.span>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="space-y-6 text-lg md:text-xl leading-relaxed text-stone-800"
+            >
+              <p>
+                Nature is my greatest inspiration, and wildlife photography is
+                my way of celebrating its beauty. Through my lens, I capture
+                birds, wildlife, and moments from nature that inspire peace,
+                wonder, and conservation. Every photograph tells a story of
+                patience, passion, and a deep connection with the natural
+                world.
+              </p>
+
+              <blockquote className="relative mt-2 border-l-2 border-red-orange-500 pl-5 md:pl-6">
+                <p className="font-playfair italic text-xl md:text-2xl text-stone-800 leading-snug">
+                  &ldquo;Every photograph is not just an image &mdash; it is a
+                  silent conversation between nature and the soul.&rdquo;
                 </p>
-                <p className="ml-10 md:ml-12">
-                  With a keen eye and unwavering patience, I seek to capture
-                  fleeting moments of beauty in the lives of wild creatures.
-                </p>
-                <p className="ml-10 md:ml-12">
-                  I&apos;m here to share the stories I&apos;ve witnessed through
-                  my lens. <span className="text-5xl">&nbsp;&rdquo;</span>
-                </p>
-              </div>
+              </blockquote>
             </motion.div>
           </div>
 
