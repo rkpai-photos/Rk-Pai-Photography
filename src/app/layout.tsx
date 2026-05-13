@@ -3,6 +3,7 @@ import "./globals.css";
 import { Archivo } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
+import TransitionOverlay from "@/components/TransitionOverlay";
 
 const archivo = Archivo({
   display: "swap",
@@ -32,6 +33,11 @@ export default function RootLayout({
           className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} font-sans`}
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>
+          {/* Page-transition loader. SSR'd visible on cold loads, fades out
+              once the first page's critical images are decoded; <TransitionLink>
+              + useStartPageTransition trigger it on in-app navs. Suppresses
+              itself on /admin*. */}
+          <TransitionOverlay />
         </body>
       </html>
     </ConvexAuthNextjsServerProvider>

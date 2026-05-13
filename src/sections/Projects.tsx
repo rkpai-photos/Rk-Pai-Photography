@@ -1,5 +1,6 @@
 import { FC } from "react";
 import Image from "next/image";
+import TransitionLink from "@/components/TransitionLink";
 
 interface ProjectProps {
   projects: {
@@ -16,7 +17,7 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
         <h1 className="text-4xl md:text-7xl lg:text-8xl">My Recent Stories.</h1>
         <div className="mt-10 md:mt-16 lg:mt-20">
           {projects.map(({ id, src, alt }) => (
-            <a
+            <TransitionLink
               href={`/stories/${id}`}
               key={id}
               className="border-t last:border-b border-stone-400 border-dotted py-6 md:py-8 lg:py-10 flex flex-col relative group/project"
@@ -73,7 +74,7 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
                   </div>
                 </div>
               </div>
-            </a>
+            </TransitionLink>
           ))}
         </div>
       </div>

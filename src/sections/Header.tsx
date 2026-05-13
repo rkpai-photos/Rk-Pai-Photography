@@ -2,11 +2,12 @@
 "use client";
 import { FC, useState, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import bird from "@/assets/images/rkpai1.png";
 import { motion, useAnimate, AnimatePresence } from "framer-motion";
 import { ImageIcon } from "lucide-react";
+import TransitionLink from "@/components/TransitionLink";
+import { useStartPageTransition } from "@/components/page-transition";
 
 const navItems = [
   {
@@ -39,6 +40,7 @@ const navItems = [
 const Header: FC = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const startPageTransition = useStartPageTransition();
   const [isOpen, setIsOpen] = useState(false);
   const [navScope, navAnimate] = useAnimate();
 
@@ -89,7 +91,9 @@ const Header: FC = () => {
       return;
     }
 
-    // Plain in-app routes ("/stories", "/album", …).
+    // Plain in-app routes ("/stories", "/album", …). Show the loader first so
+    // it's already painted when the new route's data fetch / mount begins.
+    startPageTransition(href);
     router.push(href);
   };
 
@@ -158,7 +162,7 @@ const Header: FC = () => {
       >
         <div className="flex justify-between h-28 items-center">
           <div className="relative z-50">
-            <Link href="/">
+            <TransitionLink href="/">
               <Image
                 src={bird}
                 alt="Logo"
@@ -169,7 +173,7 @@ const Header: FC = () => {
                   isOpen ? "invert brightness-0" : ""
                 }`}
               />
-            </Link>
+            </TransitionLink>
           </div>
 
           <div className="flex items-center gap-4">

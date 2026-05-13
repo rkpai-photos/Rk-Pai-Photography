@@ -209,6 +209,33 @@ Notes: without `NEXT_PUBLIC_CONVEX_URL` the app still runs but `fetchPhotos()` c
 
 Reverse-chronological. Each entry = the reason-to-exist for some change, or a summary of what a session did. When changing anything described here, read the rationale first so you don't regress the intent.
 
+### 2026-05-13 — Page-transition loader (wordmark draw-on + wait-for-critical-images)
+
+Added a global loading screen / page transition. *(Brainstormed via `superpowers:brainstorming`; design-doc + spec-review steps skipped per the user — decisions captured here instead.)*
+
+**Decisions**
+- **Wait strategy:** the loader holds until the new page's *above-the-fold or `fetchpriority="high"`* images are decoded, then reveals; below-the-fold images keep lazy-loading. Capped at `MAX_WAIT_MS = 1500ms` so it never hangs. Minimum visible time on in-app navs: `MIN_VISIBLE_MS = 600ms`. `/album` uses a fixed `ALBUM_GRACE_MS = 800ms` grace (the R3F flipbook's textures don't surface as `<img>` elements, so geometry-based detection finds nothing — fine in practice, the textures are local `/public/textures` files).
+- **Visual:** full-bleed `bg-stone-200` (matches the body), centred SVG "RK&nbsp;PAI" wordmark whose strokes draw in then cross-fade to a solid letterform, with a hair-thin `red-orange-500` progress bar underneath. Editorial / quiet (option A from the brainstorm — user rejected the cinematic curtain B and the minimal spinner C).
+- **Scope:** every in-app navigation between public routes (`/`, `/stories`, `/stories/[id]`, `/album`) AND the initial cold load / direct deep-link. **Excluded:** `/admin*` (utility area). The cross-route hash-anchor links (`/#intro` from non-home pages) stay as hard navs in `Header.tsx` — the SSR'd overlay on the new `/` page covers them, so they participate in the UX without a special code path. Same-page hash scrolls (e.g. clicking "About" while on `/`) skip the loader entirely.
+- **Reduced motion:** `@media (prefers-reduced-motion: reduce)` redefines the keyframes to a no-op (wordmark just appears solid, bar lands at its rest scale) — inline `style.animation: <name>` keeps referencing the same name, so the override sticks without fighting inline-style specificity.
+
+**Files added**
+- [src/components/page-transition.ts](src/components/page-transition.ts) — the shared Jotai atom (`pageTransitionAtom`), constants (`MIN_VISIBLE_MS` / `MAX_WAIT_MS` / `ALBUM_GRACE_MS` / `SUPPRESS_PREFIXES = ["/admin"]`), and a `useStartPageTransition()` hook for programmatic navigation. Atom default has `visible: true` so the overlay is in the first paint of a cold load (no flash of unloaded content); SSR and the first client render read the same default so there's no hydration mismatch.
+- [src/components/TransitionOverlay.tsx](src/components/TransitionOverlay.tsx) — `"use client"` overlay (`fixed inset-0 z-[100]`), mounted once in `layout.tsx`. Owns the pathname-change watcher (`usePathname()`) that runs `waitForCriticalImages(...)` then dismisses, plus a `popstate` listener for browser back/forward. Returns `null` on `/admin*`. Has a `<noscript>` style override hiding the overlay when JS is off.
+- [src/components/TransitionLink.tsx](src/components/TransitionLink.tsx) — drop-in `next/link` wrapper that flips the atom to `visible: true` on click before letting `<Link>` navigate. Skips modifier-key clicks, non-primary mouse buttons, external/`mailto:`/`tel:`, same-pathname hash links, and `/admin*` targets.
+
+**Files modified**
+- [src/app/globals.css](src/app/globals.css) — appended `@keyframes rkpai-wordmark-stroke` + `rkpai-bar-grow`, with `prefers-reduced-motion` overrides redefining the same keyframe names.
+- [src/app/layout.tsx](src/app/layout.tsx) — mounted `<TransitionOverlay />` inside `<body>` as a sibling of `ConvexClientProvider`.
+- [src/sections/Header.tsx](src/sections/Header.tsx) — logo `<Link href="/">` → `<TransitionLink>`; `handleNavigation`'s in-app `router.push(href)` path now calls `startPageTransition(href)` first. The `mailto:`/`tel:` and cross-route hash branches stay as `window.location.href` hard navs.
+- [src/components/GalleryGrid.tsx](src/components/GalleryGrid.tsx) — `import Link from "@/components/TransitionLink"` (aliased, so no JSX changes).
+- [src/sections/Projects.tsx](src/sections/Projects.tsx) — converted the plain `<a href>` to `<TransitionLink>` (it was a hard nav before; now SPA + gets the transition). Behavior change worth knowing — the home page's "Recent Stories" links used to do a full page reload, now they're SPA.
+
+**Not done / follow-ups**
+- Convert the cross-route hash-anchor nav in `Header.tsx` (`/#intro`, `/#projects` from non-home pages) to SPA + a post-arrival programmatic scroll so they participate as in-app transitions instead of hard navs. Works fine as-is via the SSR'd overlay, just not strictly SPA.
+- `/album` uses a fixed grace period; if the 3D textures feel slow we can integrate `useProgress()` from `@react-three/drei` and wait until `progress === 100`.
+- No "force-hide safety" on popstate to a same-pathname hash (rare edge case where the loader could stick); refresh works around it.
+
 ### 2026-05-13 — /stories/[id] page background now matches the home page
 
 The photo-detail page (and its "Photo Not Found" fallback) used a pastel `bg-gradient-to-br from-blue-50 via-green-50 to-purple-50` (plus a layer of blurred blue/purple/green blobs) — out of step with the rest of the site, which is the body's flat `bg-stone-200`. Swapped both wrappers to `bg-stone-200` and removed the decorative-blob `<div>`. Left the white glass content cards (`bg-white/60` etc.) — they read fine on `stone-200`; their unused `dark:` variants are unchanged (see §8). No text-colour changes needed (the page's text is the light-mode `text-gray-{500,700,800}` variants, still readable on a light bg).

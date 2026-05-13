@@ -72,3 +72,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Page-transition loader animations (see src/components/TransitionOverlay.tsx).
+ * Kept here so the keyframes can be redefined inside prefers-reduced-motion —
+ * inline styles win over Tailwind's `motion-reduce:` variants in this project
+ * (utilities aren't `!important`), but they don't override the keyframe
+ * definition that an `animation: <name> …` references. */
+@keyframes rkpai-wordmark-stroke {
+  0%   { stroke-dashoffset: 600; fill-opacity: 0; stroke-opacity: 1; }
+  60%  { stroke-dashoffset: 0;   fill-opacity: 0; stroke-opacity: 1; }
+  85%, 100% { stroke-dashoffset: 0; fill-opacity: 1; stroke-opacity: 0; }
+}
+@keyframes rkpai-bar-grow {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No motion: wordmark lands as a solid letterform, bar lands at its
+   * "in progress" rest position. Reveal still fades via opacity (fast). */
+  @keyframes rkpai-wordmark-stroke {
+    0%, 100% { stroke-dashoffset: 0; fill-opacity: 1; stroke-opacity: 0; }
+  }
+  @keyframes rkpai-bar-grow {
+    0%, 100% { transform: scaleX(0.92); }
+  }
+}

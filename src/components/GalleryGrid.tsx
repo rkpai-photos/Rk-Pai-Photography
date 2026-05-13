@@ -2,7 +2,7 @@
 // @ts-nocheck
 "use client";
 import { useEffect, useRef } from "react";
-import Link from "next/link";
+import Link from "@/components/TransitionLink";
 import Image from "next/image";
 import Masonry from "react-masonry-css";
 import { gsap } from "gsap";

@@ -39,6 +39,7 @@ next-env.d.ts
 # agent / AI-tooling scaffolding (local, not part of the project)
 .agents/
 .claude/
+.superpowers/
 AGENTS.md
 CLAUDE.md
 skills-lock.json
