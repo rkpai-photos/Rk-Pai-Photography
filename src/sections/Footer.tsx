@@ -104,6 +104,7 @@ const Footer: FC = () => {
     { href: "/", label: "Home" },
     { href: "/album", label: "Album" },
     { href: "/stories", label: "Gallery" },
+    { href: "/feather-fables", label: "Book" },
     { href: "/#projects", label: "Recent Stories" },
   ];
 

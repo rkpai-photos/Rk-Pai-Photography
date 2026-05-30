@@ -26,6 +26,11 @@ const navItems = [
     isExternal: false,
   },
   {
+    label: "Book",
+    href: "/feather-fables",
+    isExternal: false,
+  },
+  {
     label: "Recent Stories",
     href: "/#projects",
     isExternal: false,

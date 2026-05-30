@@ -58,8 +58,10 @@ export const MAX_WAIT_MS = 1500;
  */
 export const ALBUM_GRACE_MS = 800;
 
-/** Route prefixes that should NOT trigger the loader. */
-export const SUPPRESS_PREFIXES = ["/admin"];
+/** Route prefixes that should NOT trigger the loader. The Feather Fables reader
+ *  bootstraps its own skeleton + windowed lazy <img>s, so the curtain's
+ *  wait-for-images would hang on it; suppress the reader (the landing keeps it). */
+export const SUPPRESS_PREFIXES = ["/admin", "/feather-fables/read"];
 
 export function isSuppressedPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;

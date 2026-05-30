@@ -32,6 +32,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Large book masters — render to /public/books via scripts/render-book.sh; the
+# 562MB PDF and the generated web PDF must never be committed (Git/Vercel limits).
+/public/Feather_Fables_Life_Essays.pdf
+/feather-fables-web.pdf
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -26,6 +26,7 @@ const config: Config = {
         "red-orange": {
           "500": "#FF3F34",
         },
+        parchment: "#f5f1e8", // warm book/reader background (Feather Fables)
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
