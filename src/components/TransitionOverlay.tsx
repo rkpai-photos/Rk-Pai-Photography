@@ -18,6 +18,7 @@
 // remounting tricks) — state.visible flipping in either direction naturally
 // triggers the close or open animation.
 
+import Image from "next/image";
 import { useAtom } from "jotai";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -105,9 +106,9 @@ export default function TransitionOverlay() {
       </noscript>
       <span className="sr-only">Loading</span>
 
-      {/* Top panel — closes from above, "RK PAI" (Playfair Display 800, the
-          editorial display serif loaded in layout.tsx) anchored just above the
-          seam. */}
+      {/* Top panel — closes from above, the "RK Pai" wordmark image (white,
+          reads on the stone-900 panel) anchored just above the seam. Width is
+          fluid (clamp on vw) so it shrinks on small screens. */}
       <div
         className="rkpai-transition-panel absolute top-0 left-0 w-full h-1/2 bg-stone-900 flex items-end justify-center pb-4 md:pb-6"
         style={{
@@ -116,23 +117,20 @@ export default function TransitionOverlay() {
           willChange: "transform",
         }}
       >
-        <span
-          className="font-playfair text-stone-100"
-          style={{
-            fontWeight: 800,
-            letterSpacing: "0.04em",
-            fontSize: "clamp(2rem, 7vw, 4.5rem)",
-            lineHeight: 1,
-            fontFeatureSettings: '"kern", "liga"',
-          }}
-        >
-          RK&nbsp;PAI
-        </span>
+        <Image
+          src="/rkp.png"
+          alt="RK Pai"
+          width={1264}
+          height={610}
+          priority
+          sizes="(max-width: 768px) 55vw, 28rem"
+          className="h-auto w-[clamp(11rem,46vw,28rem)]"
+        />
       </div>
 
-      {/* Bottom panel — closes from below; "PHOTOGRAPHY" caption sits in
-          Archivo (the body sans) at a thin weight with wide tracking, for an
-          editorial serif/sans contrast against the wordmark above. */}
+      {/* Bottom panel — closes from below; the "Photography" script wordmark
+          image sits just below the seam, rendered at the same fluid width as
+          "RK Pai" above so the two lock up as one logo across the seam. */}
       <div
         className="rkpai-transition-panel absolute bottom-0 left-0 w-full h-1/2 bg-stone-900 flex items-start justify-center pt-4 md:pt-6"
         style={{
@@ -141,19 +139,15 @@ export default function TransitionOverlay() {
           willChange: "transform",
         }}
       >
-        <span
-          className="font-sans text-stone-400 uppercase"
-          style={{
-            fontWeight: 300,
-            letterSpacing: "0.4em",
-            fontSize: "clamp(0.7rem, 1.7vw, 0.95rem)",
-            lineHeight: 1,
-            // Compensate for `letter-spacing` pushing the last char off-centre.
-            paddingLeft: "0.4em",
-          }}
-        >
-          Photography
-        </span>
+        <Image
+          src="/rkp1.png"
+          alt="Photography"
+          width={1264}
+          height={559}
+          priority
+          sizes="(max-width: 768px) 55vw, 28rem"
+          className="h-auto w-[clamp(11rem,46vw,28rem)]"
+        />
       </div>
     </div>
   );
