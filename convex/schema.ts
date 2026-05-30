@@ -16,6 +16,9 @@ export default defineSchema({
     story: v.string(),
     imageId: v.id("_storage"),
     imageType: v.string(), // e.g. "jpeg", "png" — informational, mirrors the old column
+    // Tiny base64 LQIP (data:image/jpeg;base64,…) of a ~16px preview, shown as
+    // next/image's blur placeholder so galleries never flash a white box.
+    blurDataURL: v.optional(v.string()),
     location: v.optional(v.string()),
     createdAt: v.string(), // ISO string, kept as text to match the old data shape
     order: v.number(), // explicit sort key for the galleries (ascending)

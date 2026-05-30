@@ -22,6 +22,7 @@ interface Photo {
   image_type?: string;
   created_at?: string;
   createdAt?: string; // Processed field from fetchPhotos
+  blurDataURL?: string; // LQIP placeholder
 }
 
 interface GalleryGridProps {
@@ -105,6 +106,13 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
                   alt={photo.alt || "Photography"}
                   width={parseInt(String(photo.width)) || 800}
                   height={parseInt(String(photo.height)) || 600}
+                  // Matches the masonry column counts (4/3/2/1) so Next serves
+                  // appropriately-sized bytes instead of a full-width variant.
+                  sizes="(max-width: 500px) 100vw, (max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw"
+                  // LQIP: show the blurred preview instantly, cross-fade to the
+                  // real image. Falls back to no placeholder for legacy rows.
+                  placeholder={photo.blurDataURL ? "blur" : "empty"}
+                  blurDataURL={photo.blurDataURL}
                   className="w-full h-auto object-cover"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-50 transition-all duration-300 flex flex-col items-center justify-center">

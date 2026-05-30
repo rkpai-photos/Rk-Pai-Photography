@@ -97,6 +97,38 @@ function readImageMeta(
   });
 }
 
+// Tiny LQIP for next/image's blur placeholder: draw the file onto a ~16px
+// canvas and export a low-quality JPEG data URL (~400-700 bytes). Returns
+// undefined on any failure so a missing blur never blocks an upload.
+function makeBlurDataURL(file: File): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const w = 16;
+        const h = Math.max(1, Math.round((img.naturalHeight / img.naturalWidth) * w));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(undefined);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.5));
+      } catch {
+        resolve(undefined);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      resolve(undefined);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+}
+
 function imageTypeFromFile(file: File): string {
   const fromMime = file.type.split("/")[1];
   if (fromMime) return fromMime.toLowerCase();
@@ -184,9 +216,11 @@ function FormBody({
     try {
       let imageId: Id<"_storage"> | undefined;
       let imageType: string | undefined;
+      let blurDataURL: string | undefined;
       if (file) {
         imageId = await uploadFile(file);
         imageType = imageTypeFromFile(file);
+        blurDataURL = await makeBlurDataURL(file);
       }
       const width = Number(form.width) || photo?.width || 300;
       const height = Number(form.height) || photo?.height || 200;
@@ -204,6 +238,7 @@ function FormBody({
           height,
           imageId,
           imageType,
+          blurDataURL,
         });
         toast.success("Photo updated");
       } else {
@@ -218,6 +253,7 @@ function FormBody({
           height,
           imageType,
           imageId,
+          blurDataURL,
         });
         toast.success("Photo added");
       }

@@ -40,7 +40,7 @@ const SLIDE_MS = 5000;
 /** Per-tile phase offset — tiles start their rotation 1.25s apart. */
 const STAGGER_MS = 1250;
 
-type Slide = { src: string; alt: string; caption?: string };
+type Slide = { src: string; alt: string; caption?: string; blurDataURL?: string };
 type Tile = { position: "up" | "down"; slides: Slide[] };
 
 /** Static fallback used when no Convex photos are available (build before
@@ -96,6 +96,7 @@ function buildTilesFromPhotos(photos: Photo[], tileCount = 4): Tile[] {
       src: p.src || p.image_url,
       alt: p.alt || "Wildlife photograph",
       caption: p.location || (p.story ? truncate(p.story, 80) : undefined),
+      blurDataURL: p.blurDataURL,
     });
   });
 
@@ -225,6 +226,8 @@ function FadeTile({
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
               priority={isLcp}
               loading={mobileEager ? "eager" : undefined}
+              placeholder={slide.blurDataURL ? "blur" : "empty"}
+              blurDataURL={slide.blurDataURL}
               className="object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />

@@ -7,6 +7,7 @@ interface ProjectProps {
     id: string;
     src: string;
     alt: string;
+    blurDataURL?: string;
   }[];
 }
 
@@ -16,7 +17,7 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
       <div className="container">
         <h1 className="text-4xl md:text-7xl lg:text-8xl">My Recent Stories.</h1>
         <div className="mt-10 md:mt-16 lg:mt-20">
-          {projects.map(({ id, src, alt }) => (
+          {projects.map(({ id, src, alt, blurDataURL }) => (
             <TransitionLink
               href={`/stories/${id}`}
               key={id}
@@ -30,8 +31,11 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
                     src={src}
                     alt={alt}
                     className="w-full"
-                    width={600} 
-                    height={400} 
+                    width={600}
+                    height={400}
+                    sizes="100vw"
+                    placeholder={blurDataURL ? "blur" : "empty"}
+                    blurDataURL={blurDataURL}
                   />
                 </div>
 
@@ -46,8 +50,11 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
                         src={src}
                         alt={alt}
                         className="w-full"
-                        width={600} 
-                        height={400} 
+                        width={600}
+                        height={400}
+                        sizes="300px"
+                        placeholder={blurDataURL ? "blur" : "empty"}
+                        blurDataURL={blurDataURL}
                       />
                     </div>
                   </div>

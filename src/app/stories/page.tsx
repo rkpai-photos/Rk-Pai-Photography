@@ -13,7 +13,9 @@ import {
   siteName,
 } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+// ISR: cache the gallery render (and warm the image-optimizer cache) for 60s
+// rather than re-querying Convex on every request. (Was force-dynamic.)
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Stories",

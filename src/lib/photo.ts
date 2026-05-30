@@ -25,6 +25,8 @@ export interface Photo {
   createdAt: string;
   imageType: string;
   location?: string;
+  // LQIP for next/image's blur placeholder (undefined for legacy rows).
+  blurDataURL?: string;
 }
 
 function toPhoto(row: any): Photo {
@@ -42,6 +44,7 @@ function toPhoto(row: any): Photo {
     imageType: row.imageType ?? "jpeg",
     image_type: row.imageType ?? "jpeg",
     location: row.location,
+    blurDataURL: row.blurDataURL,
   };
 }
 
