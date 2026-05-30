@@ -122,6 +122,20 @@ export default async function PhotoDetailPage({
     inLanguage: siteLanguage,
   };
 
+  // The story is stored with blank-line paragraph breaks; render them as real
+  // paragraphs (not one collapsed wall of text) and surface a light reading-time
+  // cue for the longer field essays.
+  const storyParagraphs = (photo.story ?? "")
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const readingMinutes = Math.max(
+    1,
+    Math.round(
+      (photo.story ?? "").trim().split(/\s+/).filter(Boolean).length / 200,
+    ),
+  );
+
   return (
     <div className="relative min-h-screen bg-stone-200 p-4 md:p-8 pt-28 md:pt-36 font-sans overflow-hidden">
       <JsonLd data={photographJsonLd} />
@@ -140,7 +154,7 @@ export default async function PhotoDetailPage({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-3 w-full">
+          <div className="lg:col-span-3 w-full lg:self-start lg:sticky lg:top-28">
             <div className="relative group">
               <div className="relative rounded-3xl overflow-hidden shadow-xl transform transition-transform duration-500 hover:scale-[1.01]">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -169,26 +183,40 @@ export default async function PhotoDetailPage({
 
           {photo.story && (
             <div className="lg:col-span-2 backdrop-blur-md bg-white/60 dark:bg-gray-800/60 rounded-3xl p-6 md:p-8 border border-white/50 shadow-xl transition-all duration-300 hover:shadow-2xl flex flex-col">
-              <div className="flex items-center mb-6">
-                <BookOpen className="w-6 h-6 md:w-7 md:h-7 mr-3 text-green-500" />
-                <TypeWriter
-                  className="text-xl md:text-2xl text-gray-800 dark:text-gray-100 font-medium"
-                  text="The Story Behind"
-                  delay={80}
-                />
+              <div className="mb-6">
+                <div className="flex items-center">
+                  <BookOpen className="w-6 h-6 md:w-7 md:h-7 mr-3 text-green-600 dark:text-green-500 shrink-0" />
+                  <TypeWriter
+                    className="font-playfair text-xl md:text-2xl text-gray-800 dark:text-gray-100 font-semibold"
+                    text="The Story Behind"
+                    delay={80}
+                  />
+                </div>
+                <p className="mt-3 text-[0.7rem] uppercase tracking-[0.22em] text-green-700/70 dark:text-green-400/70 pl-9">
+                  Field notes
+                  <span className="mx-2 text-gray-400/70">·</span>
+                  {readingMinutes} min read
+                </p>
               </div>
 
-              <div className="prose prose-sm md:prose-lg dark:prose-invert max-w-none flex-1 flex flex-col justify-center">
-                <div className="relative">
-                  <div className="absolute -left-4 top-0 text-6xl text-green-400/30 font-serif">
-                    "
-                  </div>
-                  <p className="text-base md:text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-semibold italic pl-4 mb-6">
-                    {photo.story}
-                  </p>
-                  <div className="absolute -right-4 bottom-0 text-6xl text-green-400/30 font-serif">
-                    "
-                  </div>
+              {/* Editorial read: a soft vertical rule anchors the column, the
+                  first paragraph opens with a drop cap, and paragraphs fade up
+                  in a gentle stagger (see .story-essay in globals.css). */}
+              <div className="relative flex-1 pl-6">
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1 bottom-1 w-px bg-gradient-to-b from-green-500/60 via-green-500/20 to-transparent"
+                />
+                <div className="story-essay">
+                  {storyParagraphs.map((para, i) => (
+                    <p
+                      key={i}
+                      style={{ animationDelay: `${0.15 + i * 0.12}s` }}
+                      className="font-lora text-[1.05rem] md:text-[1.15rem] leading-[1.85] text-stone-700 dark:text-gray-300/90 text-pretty [&:not(:first-of-type)]:mt-5"
+                    >
+                      {para}
+                    </p>
+                  ))}
                 </div>
               </div>
 

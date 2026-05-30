@@ -84,3 +84,39 @@
     transition: none !important;
   }
 }
+
+/* Story-essay reading layout (stories/[id]). Paragraphs fade up in a gentle
+ * stagger; the drop cap on the first paragraph gives an editorial opening.
+ * Respects reduced-motion below. */
+@keyframes story-paragraph-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.story-essay > p {
+  opacity: 0;
+  animation: story-paragraph-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.story-essay > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-weight: 700;
+  font-size: 3.6rem;
+  line-height: 0.78;
+  padding: 0.3rem 0.7rem 0 0;
+  color: #15803d; /* green-700 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-essay > p {
+    opacity: 1;
+    animation: none;
+  }
+}

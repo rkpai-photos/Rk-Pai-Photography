@@ -105,7 +105,7 @@ const Hero: FC = () => {
             className="mt-20 md:mt-0 md:size-full md:absolute md:right-0 max-md:!w-full "
           >
             <Image
-              src="/images/bird3.jpg"
+              src="/b.jpeg"
               alt="bird"
               width={1600}
               height={1228}

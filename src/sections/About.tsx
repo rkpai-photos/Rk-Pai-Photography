@@ -1,10 +1,10 @@
 // @ts-nocheck
-"use client";
+'use client';
 
-import Image from "next/image";
-import { motion, Variants } from "framer-motion";
-import photo from "@/assets/images/rk.jpg";
-import { FC } from "react";
+import photo from '@/assets/images/rk.png';
+import { motion, Variants } from 'framer-motion';
+import Image from 'next/image';
+import { FC } from 'react';
 
 // SVG path animation variants
 const pathVariants: Variants = {
@@ -17,9 +17,9 @@ const pathVariants: Variants = {
     opacity: 1,
     transition: {
       duration: 2,
-      ease: "easeInOut",
+      ease: 'easeInOut',
       repeat: Infinity,
-      repeatType: "reverse",
+      repeatType: 'reverse',
     },
   },
 };
@@ -115,7 +115,7 @@ const Test: FC = () => {
                   new copy split across three sentences for rhythm. */}
               <div className="text-lg md:text-2xl space-y-4">
                 <p>
-                  Nature is my greatest inspiration, and{" "}
+                  Nature is my greatest inspiration, and{' '}
                   <motion.span
                     initial={{ opacity: 0.5 }}
                     animate={{ opacity: [0.5, 1, 0.5] }}
@@ -123,7 +123,7 @@ const Test: FC = () => {
                     className="italic underline underline-offset-4"
                   >
                     wildlife photography
-                  </motion.span>{" "}
+                  </motion.span>{' '}
                   is my way of celebrating its beauty.
                 </p>
                 <p className="ml-10 md:ml-12">
@@ -152,7 +152,7 @@ const Test: FC = () => {
             className="flex justify-start"
           >
             <Image
-              src="/images/sig.png"
+              src="/sig.png"
               alt="Signature"
               // sig.png is 300×150 (2:1); width/height must match that ratio or
               // Tailwind's `img { height: auto }` reset recomputes the height and
@@ -173,7 +173,7 @@ const Test: FC = () => {
         >
           <div className="relative aspect-[4/5] rounded-lg overflow-hidden">
             <Image
-              src={photo}
+              src="/rkk.jpeg"
               alt="Wildlife Photographer"
               fill
               // Image column is full-width on mobile, half-width from `md:` (768px) up.

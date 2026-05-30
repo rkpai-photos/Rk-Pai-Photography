@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Archivo, Playfair_Display } from "next/font/google";
+import { Archivo, Playfair_Display, Lora } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 
 import ConvexClientProvider from "@/components/ConvexClientProvider";
@@ -34,6 +34,17 @@ const playfair = Playfair_Display({
   weight: ["400", "700", "800"],
   subsets: ["latin"],
   variable: "--font-playfair",
+});
+
+// Warm humanist serif for long-form reading — the bird-essay body on
+// stories/[id]. Pairs with Playfair (display) for an editorial nature-journal
+// feel and is far more legible than a bold-italic sans wall for 300-word reads.
+const lora = Lora({
+  display: "swap",
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-lora",
 });
 
 // Site-wide SEO defaults. Every page inherits these and overrides only what
@@ -116,7 +127,7 @@ export default function RootLayout({
     <ConvexAuthNextjsServerProvider>
       <html lang="en">
         <body
-          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} ${playfair.variable} font-sans`}
+          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} ${playfair.variable} ${lora.variable} font-sans`}
         >
           <JsonLd data={siteJsonLd} />
           <ConvexClientProvider>{children}</ConvexClientProvider>
