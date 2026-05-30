@@ -148,21 +148,18 @@ const turningCurveStrength = 0.09;
 
 // Page Component
 const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
-  const frontTexturePath =
-    front === "book-cover.png"
-      ? `/textures/${front}`
-      : `/textures/${front}.jpg`;
-
+  // Textures are pre-processed to the page's 3:2 aspect and stored as WebP
+  // (see scripts/convert-textures.sh) so they map without stretching.
   const [picture, picture2, pictureRoughness] = useTexture([
-    frontTexturePath,
-    `/textures/${back}.jpg`,
+    `/textures/${front}.webp`,
+    `/textures/${back}.webp`,
     ...(number === 0 || number === pages.length - 1
-      ? [`/textures/bookrough.png`]
+      ? [`/textures/bookrough.webp`]
       : []),
   ]);
 
   picture.colorSpace = picture2.colorSpace = SRGBColorSpace;
-  picture.flipY = front === "book-cover.png" ? false : true;
+  picture.flipY = true;
 
   const group = useRef();
   const turnedAt = useRef(0);
