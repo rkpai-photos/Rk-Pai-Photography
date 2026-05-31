@@ -21,12 +21,12 @@ import {
 } from "three";
 import { degToRad } from "three/src/math/MathUtils.js";
 
-// Constants — pages are 3:2 landscape (1.71 × 1.14) to match DSLR/wildlife
-// photography aspect ratio. Previously 3:4 portrait (1.28 × 1.71); switching
-// keeps the bounding diagonal nearly identical (2.06 vs 2.14) so the camera
-// framing + per-breakpoint scale in Experience.jsx didn't need to change.
+// Constants — pages match the Feather Fables book page aspect (A4 landscape,
+// 2200×1556 ≈ 1.414) so the rendered book-page textures map with no stretch.
+// Width is held at 1.71 (keeps the skin-index edge guard below valid and the
+// camera framing in Experience.jsx unchanged); height follows from the aspect.
 const PAGE_WIDTH = 1.71;
-const PAGE_HEIGHT = 1.14;
+const PAGE_HEIGHT = 1.71 / (2200 / 1556); // ≈ 1.209
 const PAGE_DEPTH = 0.003;
 const PAGE_SEGMENTS = 30;
 const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
@@ -35,43 +35,24 @@ const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
 import { atom } from "jotai";
 export const pageAtom = atom(0);
 
-// Define pictures array
-const pictures = [
-  "bird2",
-  "bird3",
-  "bird4",
-  "bird5",
-  "bird6",
-  "bird7",
-  "bird8",
-  "bird9",
-  "bird10",
-  "bird11",
-  "bird12",
-  "bird13",
-  "bird14",
-  "bird15",
-];
-
-// Define pages array
-export const pages = [
-  {
-    front: "book-cover",
-    back: pictures[0],
-  },
-];
-
-for (let i = 1; i < pictures.length - 1; i += 2) {
-  pages.push({
-    front: pictures[i % pictures.length],
-    back: pictures[(i + 1) % pictures.length],
-  });
+// Album faces, in reading order: the real front cover (book page 1), content
+// pages 37–101, the decorative peacock endpaper (page 107), then the back cover
+// (page 108). Textures live in /public/textures/album (built by
+// scripts/convert-textures.sh from /public/books/feather-fables). 1 cover + 65
+// pages + endpaper + back = 68 faces = 34 leaves (even), so every leaf has a
+// front and a back.
+const faces = ["cover"];
+for (let p = 37; p <= 101; p++) {
+  faces.push(`page-${String(p).padStart(3, "0")}`);
 }
+faces.push("page-107"); // decorative peacock endpaper (inside back cover)
+faces.push("page-108"); // back cover
 
-pages.push({
-  front: pictures[pictures.length - 1],
-  back: "book-back",
-});
+// Pair consecutive faces into physical leaves.
+export const pages = [];
+for (let i = 0; i < faces.length; i += 2) {
+  pages.push({ front: faces[i], back: faces[i + 1] });
+}
 
 // Create page geometry
 const pageGeometry = new BoxGeometry(
@@ -148,18 +129,19 @@ const turningCurveStrength = 0.09;
 
 // Page Component
 const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
-  // Textures are pre-processed to the page's 3:2 aspect and stored as WebP
-  // (see scripts/convert-textures.sh) so they map without stretching.
+  // Book-page textures (see scripts/convert-textures.sh) already match the page
+  // aspect, so they map without stretching. The front cover (leaf 0) and the
+  // back cover (last leaf) get the roughness map for that hard-cover sheen.
   const [picture, picture2, pictureRoughness] = useTexture([
-    `/textures/${front}.webp`,
-    `/textures/${back}.webp`,
+    `/textures/album/${front}.webp`,
+    `/textures/album/${back}.webp`,
     ...(number === 0 || number === pages.length - 1
       ? [`/textures/bookrough.webp`]
       : []),
   ]);
 
   picture.colorSpace = picture2.colorSpace = SRGBColorSpace;
-  picture.flipY = true;
+  picture.flipY = picture2.flipY = true;
 
   const group = useRef();
   const turnedAt = useRef(0);
