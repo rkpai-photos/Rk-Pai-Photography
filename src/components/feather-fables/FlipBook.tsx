@@ -18,6 +18,9 @@ import { useEffect, useRef, useState } from "react";
 import { PageFlip } from "page-flip";
 import type { Book } from "@/data/books";
 import { pageUrl, thumbUrl } from "@/data/books";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
+
+const MAX_PAGE_WIDTH = 1100; // must match the PageFlip maxWidth below
 
 export type FlipApi = {
   next: () => void;
@@ -40,6 +43,17 @@ const clamp = (n: number, lo: number, hi: number) =>
 export default function FlipBook({ book, initialPage, onPageChange, onInit }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  const isDesktop = useIsDesktop();
+
+  // Lock the container to the exact book aspect (two-page spread on desktop,
+  // single page on mobile) so page-flip initializes with NO vertical slack.
+  // Without this, the spread is width-fit (short) inside a full-height block,
+  // and the hard-cover flip rotates using the *block* height — ballooning the
+  // cover taller and lurching it upward, then snapping back. Hugging the pages
+  // moves the centering whitespace outside the flip surface where it's inert.
+  const pagesAcross = isDesktop ? 2 : 1;
+  const frameAspect = book.aspect * pagesAcross;
+  const frameMaxWidth = MAX_PAGE_WIDTH * pagesAcross;
 
   const onPageChangeRef = useRef(onPageChange);
   onPageChangeRef.current = onPageChange;
@@ -123,18 +137,28 @@ export default function FlipBook({ book, initialPage, onPageChange, onInit }: Pr
   }, []);
 
   // overflow-hidden clips the briefly-stacked page shells before page-flip
-  // arranges them (rendered at opacity 0 until ready).
+  // arranges them (rendered at opacity 0 until ready). aspectRatio hugs the
+  // pages so there's no vertical slack for the cover flip to balloon into;
+  // max-h-full keeps it inside the stage on short/wide viewports.
   return (
     <div
       ref={containerRef}
-      className="ff-book mx-auto h-full w-full overflow-hidden"
-      style={{ opacity: ready ? 1 : 0, transition: "opacity 300ms ease" }}
+      className="ff-book mx-auto w-full max-h-full overflow-hidden"
+      style={{
+        aspectRatio: String(frameAspect),
+        maxWidth: frameMaxWidth,
+        opacity: ready ? 1 : 0,
+        transition: "opacity 300ms ease",
+      }}
     >
       {Array.from({ length: book.pageCount }, (_, i) => {
         const n = i + 1;
-        const hard = n === 1 || n === book.pageCount;
+        // Soft density everywhere — including the cover. A "hard" cover flips as
+        // a rigid rotation that page-flip renders taller than the flat page,
+        // producing an abrupt upward lurch on open; soft gives the same smooth
+        // page-bend the interior turns use.
         return (
-          <div key={n} className="ff-page" data-density={hard ? "hard" : "soft"}>
+          <div key={n} className="ff-page" data-density="soft">
             <img
               className="ff-img"
               alt={`${book.title} — page ${n}`}

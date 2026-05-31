@@ -56,26 +56,35 @@ export default function ReaderToolbar({
       <TransitionLink
         href="/feather-fables"
         aria-label="Back to book page"
-        className="flex items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-white/10"
+        className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-white/10"
       >
         <ArrowLeft className="h-5 w-5" />
         <span className="hidden sm:inline">Back</span>
       </TransitionLink>
 
-      <h1 className="truncate font-playfair text-base md:text-lg">{book.title}</h1>
+      {/* Title is context, not control — drop it on phones to free the row. */}
+      <h1 className="hidden min-w-0 truncate font-playfair text-base sm:block md:text-lg">
+        {book.title}
+      </h1>
 
       {/* Language toggle — full reload to the other edition (rare action). */}
       <a
         href={otherLangHref}
         title={lang === "en" ? "ಕನ್ನಡದಲ್ಲಿ ಓದಿ" : "Read in English"}
-        className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-xs hover:bg-white/10"
+        className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-xs hover:bg-white/10"
       >
         <Languages className="h-3.5 w-3.5" />
         {lang === "en" ? "ಕನ್ನಡ" : "English"}
       </a>
 
-      <div className="ml-auto flex items-center gap-1 md:gap-2">
-        <button type="button" onClick={onPrev} aria-label="Previous page" className={iconBtn}>
+      <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2">
+        {/* Prev/next are desktop affordances; on touch you swipe (see the hint). */}
+        <button
+          type="button"
+          onClick={onPrev}
+          aria-label="Previous page"
+          className={`${iconBtn} hidden md:inline-flex`}
+        >
           <ChevronLeft className="h-5 w-5" />
         </button>
 
@@ -94,7 +103,12 @@ export default function ReaderToolbar({
           <span className="text-stone-400">/ {total}</span>
         </div>
 
-        <button type="button" onClick={onNext} aria-label="Next page" className={iconBtn}>
+        <button
+          type="button"
+          onClick={onNext}
+          aria-label="Next page"
+          className={`${iconBtn} hidden md:inline-flex`}
+        >
           <ChevronRight className="h-5 w-5" />
         </button>
 

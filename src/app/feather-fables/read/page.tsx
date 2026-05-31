@@ -10,6 +10,7 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getBookByLang, webPdfUrl } from "@/data/books";
 import { trackEvent } from "@/lib/analytics";
 import ReaderSkeleton from "@/components/feather-fables/ReaderSkeleton";
@@ -36,6 +37,8 @@ function ReaderInner() {
   const [current, setCurrent] = useState(1);
   const [total, setTotal] = useState(book.pageCount);
   const [thumbsOpen, setThumbsOpen] = useState(false);
+  // Mobile swipe hint — shown until the first real navigation, then faded out.
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   // Initial page: ?page=N  >  localStorage(last read)  >  1. Computed once.
   const initialPage = useMemo(() => {
@@ -68,7 +71,10 @@ function ReaderInner() {
       url.searchParams.set("page", String(page));
       window.history.replaceState(null, "", url.toString());
       if (firstChange.current) firstChange.current = false;
-      else trackEvent("page_turned", { book: book.slug, page });
+      else {
+        setHasNavigated(true);
+        trackEvent("page_turned", { book: book.slug, page });
+      }
     },
     [lsKey, book.slug],
   );
@@ -108,7 +114,7 @@ function ReaderInner() {
         pdfUrl={webPdfUrl(book)}
       />
 
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 py-3 md:px-6 md:py-5">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 md:px-6 md:py-5">
         <FlipBook
           key={book.slug}
           book={book}
@@ -116,6 +122,19 @@ function ReaderInner() {
           onPageChange={handlePageChange}
           onInit={handleInit}
         />
+
+        {/* Mobile-only swipe affordance. Bidirectional chevrons signal that you
+            can swipe either way; fades out once the reader navigates. */}
+        <p
+          aria-hidden
+          className={`mt-5 flex select-none items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 transition-opacity duration-700 md:hidden ${
+            hasNavigated ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          <ChevronLeft className="h-3.5 w-3.5 animate-pulse" />
+          Swipe to turn pages
+          <ChevronRight className="h-3.5 w-3.5 animate-pulse" />
+        </p>
       </div>
 
       <ThumbnailSidebar

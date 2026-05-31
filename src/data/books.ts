@@ -36,7 +36,7 @@ export const featherFables: Book = {
   coverPage: 1,
   pageWidth: 2200,
   pageHeight: 1556,
-  pdfPath: "/comp_eng.pdf",
+  pdfPath: "/ebook_Feather_Fables_English.pdf",
 };
 
 export const featherFablesKannada: Book = {
@@ -46,12 +46,12 @@ export const featherFablesKannada: Book = {
   title: "ಒಂದು ಗರಿಯ ಕಥೆ", // "A Feather's Tale" — Kannada edition of Feather Fables
   subtitle: "ಪಕ್ಷಿಗಳ ಜಗತ್ತಿನ ಪಯಣ", // "A journey through the world of birds"
   author: "P. Radhakrishna Pai",
-  pageCount: 105,
+  pageCount: 107,
   aspect: A4_LANDSCAPE,
   coverPage: 1,
   pageWidth: 2200,
   pageHeight: 1556,
-  pdfPath: "/comp_kannada.pdf",
+  pdfPath: "/ebook_Feather_Fables_kannada.pdf",
 };
 
 const books: Record<string, Book> = {
