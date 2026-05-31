@@ -34,8 +34,4 @@ for n in $(seq 37 101) 106 108; do            # content + blank endpaper(106) + 
   shot "$SRC/page-$nn.webp" "$OUT/page-$nn.webp"
 done
 
-# bookrough.webp (cover roughness map) is kept from the prior texture set in
-# public/textures/ and is aspect-independent micro detail.
-[ -f public/textures/bookrough.webp ] || echo "warn: public/textures/bookrough.webp missing"
-
 echo "Done. Album textures: $(ls "$OUT"/*.webp | wc -l) files, $(du -ch "$OUT"/*.webp | tail -1 | cut -f1)"

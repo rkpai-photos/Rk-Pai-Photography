@@ -132,14 +132,11 @@ const turningCurveStrength = 0.09;
 // Page Component
 const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
   // Book-page textures (see scripts/convert-textures.sh) already match the page
-  // aspect, so they map without stretching. The front cover (leaf 0) and the
-  // back cover (last leaf) get the roughness map for that hard-cover sheen.
-  const [picture, picture2, pictureRoughness] = useTexture([
+  // aspect, so they map without stretching. No roughness map — it gave both
+  // covers a patchy, uneven sheen; a plain matte finish lights evenly.
+  const [picture, picture2] = useTexture([
     `/textures/album/${front}.webp`,
     `/textures/album/${back}.webp`,
-    ...(number === 0 || number === pages.length - 1
-      ? [`/textures/bookrough.webp`]
-      : []),
   ]);
 
   picture.colorSpace = picture2.colorSpace = SRGBColorSpace;
@@ -171,18 +168,17 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       new MeshStandardMaterial({
         color: whiteColor,
         map: picture,
-        ...(number === 0
-          ? { roughnessMap: pictureRoughness }
-          : { roughness: 0.1 }),
+        // Front cover gets a plain matte finish (no roughness-map texture);
+        // interior pages stay slightly glossier.
+        roughness: number === 0 ? 0.6 : 0.1,
         emissive: emissiveColor,
         emissiveIntensity: 0,
       }),
       new MeshStandardMaterial({
         color: whiteColor,
         map: picture2,
-        ...(number === pages.length - 1
-          ? { roughnessMap: pictureRoughness }
-          : { roughness: 0.1 }),
+        // Back cover gets the same plain matte finish as the front cover.
+        roughness: number === pages.length - 1 ? 0.6 : 0.1,
         emissive: emissiveColor,
         emissiveIntensity: 0,
       }),
