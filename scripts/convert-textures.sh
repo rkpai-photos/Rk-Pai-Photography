@@ -2,8 +2,8 @@
 # Build the /album 3D book textures from the Feather Fables book pages.
 #
 # The album shows the real book: a front cover (page 1), content pages 37–101,
-# the decorative peacock endpaper (page 107) and the back cover (page 108), all
-# sourced from public/books/feather-fables and downscaled to ~900px WebP. The
+# a blank paper endpaper (page 106) and the back cover (page 108), all sourced
+# from public/books/feather-fables and downscaled to ~900px WebP. The
 # 3D book renders each page small, so 900px is plenty (the
 # full-res reader lives at /feather-fables/read); keeping the textures lean
 # matters because the album uploads ALL of them to the GPU at once.
@@ -29,7 +29,7 @@ shot() { # in.webp out.webp
 }
 
 shot "$SRC/page-001.webp" "$OUT/cover.webp" # front cover
-for n in $(seq 37 101) 107 108; do            # content + endpaper(107) + back(108)
+for n in $(seq 37 101) 106 108; do            # content + blank endpaper(106) + back(108)
   nn="$(printf '%03d' "$n")"
   shot "$SRC/page-$nn.webp" "$OUT/page-$nn.webp"
 done

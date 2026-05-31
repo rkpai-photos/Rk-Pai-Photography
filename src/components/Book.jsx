@@ -36,16 +36,18 @@ import { atom } from "jotai";
 export const pageAtom = atom(0);
 
 // Album faces, in reading order: the real front cover (book page 1), content
-// pages 37–101, the decorative peacock endpaper (page 107), then the back cover
-// (page 108). Textures live in /public/textures/album (built by
+// pages 37–101, a blank paper endpaper (page 106), then the back cover (page
+// 108). Textures live in /public/textures/album (built by
 // scripts/convert-textures.sh from /public/books/feather-fables). 1 cover + 65
 // pages + endpaper + back = 68 faces = 34 leaves (even), so every leaf has a
-// front and a back.
+// front and a back. The endpaper is the book's blank cream page rather than the
+// bordered peacock plate: a full-bleed bordered page leaks a colored line into
+// the spine gutter behind the last content page, the blank one does not.
 const faces = ["cover"];
 for (let p = 37; p <= 101; p++) {
   faces.push(`page-${String(p).padStart(3, "0")}`);
 }
-faces.push("page-107"); // decorative peacock endpaper (inside back cover)
+faces.push("page-106"); // blank paper endpaper (no border -> no gutter line)
 faces.push("page-108"); // back cover
 
 // Pair consecutive faces into physical leaves.
