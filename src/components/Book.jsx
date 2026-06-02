@@ -21,12 +21,11 @@ import {
 } from "three";
 import { degToRad } from "three/src/math/MathUtils.js";
 
-// Constants — pages match the Feather Fables book page aspect (A4 landscape,
-// 2200×1556 ≈ 1.414) so the rendered book-page textures map with no stretch.
-// Width is held at 1.71 (keeps the skin-index edge guard below valid and the
-// camera framing in Experience.jsx unchanged); height follows from the aspect.
+// Constants — pages are 3:2 landscape (1.71 × 1.14) to match the wildlife/DSLR
+// photo aspect of the bird plates. Width is held at 1.71 (keeps the skin-index
+// edge guard below valid and the camera framing in Experience.jsx unchanged).
 const PAGE_WIDTH = 1.71;
-const PAGE_HEIGHT = 1.71 / (2200 / 1556); // ≈ 1.209
+const PAGE_HEIGHT = 1.14;
 const PAGE_DEPTH = 0.003;
 const PAGE_SEGMENTS = 30;
 const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
@@ -35,20 +34,21 @@ const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
 import { atom } from "jotai";
 export const pageAtom = atom(0);
 
-// Album faces, in reading order: the real front cover (book page 1), content
-// pages 37–101, a blank paper endpaper (page 106), then the back cover (page
-// 108). Textures live in /public/textures/album (built by
-// scripts/convert-textures.sh from /public/books/feather-fables). 1 cover + 65
-// pages + endpaper + back = 68 faces = 34 leaves (even), so every leaf has a
-// front and a back. The endpaper is the book's blank cream page rather than the
-// bordered peacock plate: a full-bleed bordered page leaks a colored line into
-// the spine gutter behind the last content page, the blank one does not.
-const faces = ["cover"];
-for (let p = 37; p <= 101; p++) {
-  faces.push(`page-${String(p).padStart(3, "0")}`);
+// Album interior plates — all 55 bird/wildlife photos from the printed book, in
+// reading order, blur-extended to the 3:2 page (built by
+// scripts/convert-textures.sh from ~/feather-fables/images into
+// /public/textures/album as b01..b55.webp). Keep BIRD_COUNT in sync with the
+// `birds` list in that script.
+const BIRD_COUNT = 55;
+const pictures = [];
+for (let i = 1; i <= BIRD_COUNT; i++) {
+  pictures.push(`b${String(i).padStart(2, "0")}`);
 }
-faces.push("page-106"); // blank paper endpaper (no border -> no gutter line)
-faces.push("page-108"); // back cover
+
+// Faces in reading order: front cover, the 55 plates, a cream endpaper, then the
+// back cover. The endpaper pads the count to even (58 faces = 29 leaves) so
+// every leaf has a front and a back and the back cover stays the outermost face.
+const faces = ["cover", ...pictures, "blank", "back"];
 
 // Pair consecutive faces into physical leaves.
 export const pages = [];
@@ -131,9 +131,9 @@ const turningCurveStrength = 0.09;
 
 // Page Component
 const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
-  // Book-page textures (see scripts/convert-textures.sh) already match the page
-  // aspect, so they map without stretching. No roughness map — it gave both
-  // covers a patchy, uneven sheen; a plain matte finish lights evenly.
+  // Bird-plate textures (see scripts/convert-textures.sh) are pre-processed to
+  // the 3:2 page aspect, so they map without stretching. No roughness map — it
+  // gave both covers a patchy, uneven sheen; a plain matte finish lights evenly.
   const [picture, picture2] = useTexture([
     `/textures/album/${front}.webp`,
     `/textures/album/${back}.webp`,
