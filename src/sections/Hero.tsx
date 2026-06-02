@@ -14,7 +14,14 @@ const Hero: FC = () => {
   const scrollingDivRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (imageRef.current && scrollingDivRef.current) {
+    // Desktop only: the image-grow scrub needs the 100vh spacer below to drive
+    // it. On mobile the image is locked to full width (max-md:!w-full) and the
+    // spacer collapses (md:h-[100vh]), so there's nothing to animate — gating
+    // with matchMedia avoids attaching a ScrollTrigger to a 0-height trigger and
+    // cleans the animation up automatically when crossing the breakpoint.
+    const mm = gsap.matchMedia();
+    mm.add("(min-width: 768px)", () => {
+      if (!imageRef.current || !scrollingDivRef.current) return;
       gsap.to(imageRef.current, {
         width: "240%",
         ease: "none",
@@ -25,7 +32,8 @@ const Hero: FC = () => {
           scrub: 0.5,
         },
       });
-    }
+    });
+    return () => mm.revert();
   }, []);
 
   return (
@@ -114,7 +122,7 @@ const Hero: FC = () => {
           </div>
         </div>
       </div>
-      <div className="h-[100vh]" ref={scrollingDivRef}></div>
+      <div className="md:h-[100vh]" ref={scrollingDivRef}></div>
     </section>
   );
 };
