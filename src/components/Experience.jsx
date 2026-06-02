@@ -1,6 +1,7 @@
 import { OrbitControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
+import debounce from "lodash/debounce";
 import { Book } from "./Book";
 
 export const Experience = () => {
@@ -22,8 +23,12 @@ export const Experience = () => {
     };
 
     updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    const onResize = debounce(updateScale, 150);
+    window.addEventListener("resize", onResize);
+    return () => {
+      onResize.cancel();
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return (

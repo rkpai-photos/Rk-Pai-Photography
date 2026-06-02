@@ -6,7 +6,7 @@ import React, { useEffect, useCallback, useRef } from "react";
 import { useAtom } from "jotai";
 import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { pageAtom } from "./Book"; // Import pageAtom from Book.jsx
 export const UI = () => {
   const [page] = useAtom(pageAtom);

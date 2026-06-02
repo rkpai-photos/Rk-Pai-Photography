@@ -2,6 +2,7 @@
 "use client";
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useState } from "react";
+import debounce from "lodash/debounce";
 import { Experience } from "../../components/Experience";
 import { UI } from "../../components/UI";
 import Header from "@/sections/Header";
@@ -26,8 +27,14 @@ function App() {
     };
 
     handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    // Debounce: a window drag-resize fires this dozens of times/sec, each a
+    // setState that re-renders the Canvas. 150ms settles it to one update.
+    const onResize = debounce(handleResize, 150);
+    window.addEventListener("resize", onResize);
+    return () => {
+      onResize.cancel();
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return (

@@ -93,7 +93,7 @@ export default function TransitionOverlay() {
 
   return (
     <div
-      className={`rkpai-transition-overlay fixed inset-0 z-[100] ${
+      className={`rkpai-transition-overlay fixed inset-0 z-[100] overflow-hidden ${
         state.visible ? "pointer-events-auto" : "pointer-events-none"
       }`}
       aria-hidden={!state.visible}

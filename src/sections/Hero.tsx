@@ -113,10 +113,16 @@ const Hero: FC = () => {
             className="mt-20 md:mt-0 md:size-full md:absolute md:right-0 max-md:!w-full "
           >
             <Image
-              src="/b.jpeg"
+              src="/b.webp"
               alt="bird"
               width={1600}
               height={1228}
+              priority
+              // The hero image is the LCP element (and on desktop it scrubs up to
+              // ~100vw wide). priority drops the default lazy load; sizes lets
+              // mobile — where there's no zoom — fetch a ~640w candidate instead
+              // of the 1920w one next/image picks with no sizes hint.
+              sizes="100vw"
               className="size-full object-cover "
             />
           </div>
