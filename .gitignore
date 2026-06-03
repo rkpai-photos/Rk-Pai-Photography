@@ -37,6 +37,11 @@ yarn-error.log*
 /public/Feather_Fables_Life_Essays.pdf
 /feather-fables-web.pdf
 
+# Full-res landscape/travel source JPEGs (181MB). These are optimized and
+# uploaded to Convex by scripts/import-landscape.mjs; the app reads from Convex,
+# so the originals must never be committed.
+/public/landscape/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
