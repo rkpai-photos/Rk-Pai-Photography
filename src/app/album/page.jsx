@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import debounce from "lodash/debounce";
 import { Experience } from "../../components/Experience";
 import { UI } from "../../components/UI";
+import AlbumLoader from "../../components/AlbumLoader";
 import Header from "@/sections/Header";
 
 function App() {
@@ -62,6 +63,10 @@ function App() {
           </Suspense>
         </Canvas>
       </div>
+
+      {/* Cover the blank canvas with an on-brand loading screen until drei's
+          useTexture has pulled the page textures. */}
+      <AlbumLoader />
     </div>
   );
 }
