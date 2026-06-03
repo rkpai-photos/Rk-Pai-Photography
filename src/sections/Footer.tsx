@@ -184,9 +184,24 @@ const Footer: FC = () => {
             </div>
           </div>
         </div>
-        <p className="py-16 text-white/30 text-sm">
-          Copyright &copy; RK Pai &bull; All rights reserved
-        </p>
+        <div className="flex flex-col gap-3 py-16 text-sm md:flex-row md:items-center md:justify-between">
+          <p className="text-white/30">
+            Copyright &copy; RK Pai &bull; All rights reserved
+          </p>
+          <p className="text-white/80">
+            Digital experience crafted with{" "}
+            <span aria-label="love" role="img">
+              ❤️
+            </span>{" "}
+            by{" "}
+            <a
+              href="mailto:shenoyvrathik@gmail.com"
+              className="font-semibold text-white underline decoration-white/50 underline-offset-4 transition-colors hover:decoration-white"
+            >
+              Vrathik Shenoy K
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );
