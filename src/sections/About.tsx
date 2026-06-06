@@ -93,7 +93,7 @@ const Test: FC = () => {
         >
           <div className="relative aspect-[4/5] rounded-lg overflow-hidden">
             <Image
-              src="/rkk.jpeg"
+              src="/rkk.webp"
               alt="Wildlife Photographer"
               fill
               // Image column is full-width on mobile, half-width from `md:` (768px) up.

@@ -46,7 +46,7 @@ export const featherFablesKannada: Book = {
   title: "ಒಂದು ಗರಿಯ ಕಥೆ", // "A Feather's Tale" — Kannada edition of Feather Fables
   subtitle: "ಪಕ್ಷಿಗಳ ಜಗತ್ತಿನ ಪಯಣ", // "A journey through the world of birds"
   author: "P. Radhakrishna Pai",
-  pageCount: 107,
+  pageCount: 108,
   aspect: A4_LANDSCAPE,
   coverPage: 1,
   pageWidth: 2200,
