@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    imgOptTimeoutInSeconds: 30,
+  },
   images: {
     remotePatterns: [
       // Convex File Storage — photos uploaded via /admin or the import script.
