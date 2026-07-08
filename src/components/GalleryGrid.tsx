@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Link from "@/components/TransitionLink";
-import Image from "next/image";
+import ProtectedImage from "@/components/ProtectedImage";
 import Masonry from "react-masonry-css";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -101,7 +101,7 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
               className="block mb-4 gallery-item"
             >
               <div className="relative overflow-hidden rounded-lg shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105">
-                <Image
+                <ProtectedImage
                   src={imageUrl}
                   alt={photo.alt || "Photography"}
                   width={parseInt(String(photo.width)) || 800}

@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 
 import { fetchPhotoBySlug } from "@/lib/photo";
-import Image from "next/image";
+import ProtectedImage from "@/components/ProtectedImage";
 import { Camera, BookOpen, Calendar, MapPin } from "lucide-react";
 import Header from "@/sections/Header";
 import JsonLd from "@/components/JsonLd";
@@ -158,7 +158,7 @@ export default async function PhotoDetailPage({
             <div className="relative group">
               <div className="relative rounded-3xl overflow-hidden shadow-xl transform transition-transform duration-500 hover:scale-[1.01]">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <Image
+                <ProtectedImage
                   src={photo.image_url}
                   alt={photo.alt}
                   width={photo.width}

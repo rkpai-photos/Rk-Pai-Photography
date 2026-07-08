@@ -28,8 +28,6 @@ function App() {
     };
 
     handleResize();
-    // Debounce: a window drag-resize fires this dozens of times/sec, each a
-    // setState that re-renders the Canvas. 150ms settles it to one update.
     const onResize = debounce(handleResize, 150);
     window.addEventListener("resize", onResize);
     return () => {
@@ -64,8 +62,6 @@ function App() {
         </Canvas>
       </div>
 
-      {/* Cover the blank canvas with an on-brand loading screen until drei's
-          useTexture has pulled the page textures. */}
       <AlbumLoader />
     </div>
   );

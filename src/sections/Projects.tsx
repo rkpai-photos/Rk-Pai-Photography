@@ -1,5 +1,5 @@
 import { FC } from "react";
-import Image from "next/image";
+import ProtectedImage from "@/components/ProtectedImage";
 import TransitionLink from "@/components/TransitionLink";
 
 interface ProjectProps {
@@ -27,7 +27,7 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
               
               <div className="relative">
                 <div className="aspect-video md:hidden">
-                  <Image
+                  <ProtectedImage
                     src={src}
                     alt={alt}
                     className="w-full"
@@ -46,7 +46,7 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
 
                   <div className="relative">
                     <div className="absolute aspect-video w-full top-1/2 -translate-y-1/2 opacity-0 scale-90 group-hover/project:opacity-100 group-hover/project:scale-100 lg:group-hover/project:scale-110 transition-all duration-500 z-10">
-                      <Image
+                      <ProtectedImage
                         src={src}
                         alt={alt}
                         className="w-full"

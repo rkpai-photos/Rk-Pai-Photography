@@ -1,8 +1,6 @@
+import { BookOpen, Box } from "lucide-react";
 import Image from "next/image";
-import { BookOpen, Download, Box } from "lucide-react";
 
-import Header from "@/sections/Header";
-import Footer from "@/sections/Footer";
 import JsonLd from "@/components/JsonLd";
 import TransitionLink from "@/components/TransitionLink";
 import {
@@ -11,7 +9,9 @@ import {
   pageUrl,
   webPdfUrl,
 } from "@/data/books";
-import { absoluteUrl, person, siteName, siteLanguage } from "@/lib/site";
+import { absoluteUrl, person, siteLanguage, siteName } from "@/lib/site";
+import Footer from "@/sections/Footer";
+import Header from "@/sections/Header";
 
 export const revalidate = 60;
 
@@ -74,7 +74,9 @@ export default function FeatherFablesLanding() {
             <p className="mt-6 text-stone-700">
               by <span className="font-medium">{book.author}</span>
             </p>
-            <p className="mt-1 text-sm text-stone-500">{book.pageCount} pages</p>
+            <p className="mt-1 text-sm text-stone-500">
+              {book.pageCount} pages
+            </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <TransitionLink
@@ -83,16 +85,6 @@ export default function FeatherFablesLanding() {
               >
                 <BookOpen className="h-4 w-4" /> Read Online
               </TransitionLink>
-              {pdf ? (
-                <a
-                  href={pdf}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-stone-400 px-6 py-3 text-sm font-medium text-stone-800 transition hover:bg-stone-300"
-                >
-                  <Download className="h-4 w-4" /> Download PDF
-                </a>
-              ) : null}
             </div>
 
             {/* Kannada edition */}
@@ -104,16 +96,6 @@ export default function FeatherFablesLanding() {
               >
                 <BookOpen className="h-4 w-4" /> ಓದಿ
               </TransitionLink>
-              {kannadaPdf ? (
-                <a
-                  href={kannadaPdf}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-stone-600 underline-offset-4 hover:underline"
-                >
-                  <Download className="h-4 w-4" /> PDF
-                </a>
-              ) : null}
             </div>
 
             <TransitionLink
@@ -125,7 +107,6 @@ export default function FeatherFablesLanding() {
           </div>
         </div>
       </main>
-
       <Footer />
     </div>
   );
