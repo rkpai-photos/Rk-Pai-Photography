@@ -11,7 +11,7 @@ import {
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getBookByLang, webPdfUrl } from "@/data/books";
+import { getBookByLang } from "@/data/books";
 import { trackEvent } from "@/lib/analytics";
 import ReaderSkeleton from "@/components/feather-fables/ReaderSkeleton";
 import ReaderToolbar from "@/components/feather-fables/ReaderToolbar";
@@ -111,7 +111,6 @@ function ReaderInner() {
         onJump={jump}
         onToggleThumbs={() => setThumbsOpen((v) => !v)}
         fullscreenTargetRef={stageRef}
-        pdfUrl={webPdfUrl(book)}
       />
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 md:px-6 md:py-5">

@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
-  Download,
   Languages,
 } from "lucide-react";
 import FullscreenButton from "./FullscreenButton";
@@ -28,7 +27,6 @@ export default function ReaderToolbar({
   onJump,
   onToggleThumbs,
   fullscreenTargetRef,
-  pdfUrl,
 }: {
   book: Book;
   lang: BookLang;
@@ -40,7 +38,6 @@ export default function ReaderToolbar({
   onJump: (page1: number) => void;
   onToggleThumbs: () => void;
   fullscreenTargetRef: RefObject<HTMLElement | null>;
-  pdfUrl: string;
 }) {
   const [draft, setDraft] = useState(String(current));
   useEffect(() => setDraft(String(current)), [current]);
@@ -123,20 +120,6 @@ export default function ReaderToolbar({
         </button>
 
         <FullscreenButton targetRef={fullscreenTargetRef} className={iconBtn} />
-
-        {pdfUrl ? (
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackEvent("pdf_downloaded", { book: book.slug })}
-            aria-label="Download PDF"
-            title="Download PDF"
-            className={iconBtn}
-          >
-            <Download className="h-5 w-5" />
-          </a>
-        ) : null}
       </div>
     </header>
   );
