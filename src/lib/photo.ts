@@ -10,6 +10,7 @@
 // `npx convex dev` once. Run that before `next build` / `next dev`.
 import { fetchQuery } from "convex/nextjs";
 import { api } from "../../convex/_generated/api";
+import { unstable_cache } from "next/cache";
 
 export interface Photo {
   id: string;
@@ -48,24 +49,40 @@ function toPhoto(row: any): Photo {
   };
 }
 
+const getCachedPhotos = unstable_cache(
+  async (): Promise<Photo[]> => {
+    try {
+      const rows = (await fetchQuery(api.photos.list, {})) ?? [];
+      const photos = rows.map(toPhoto);
+      console.log(`Total photos fetched from Convex: ${photos.length}`);
+      return photos;
+    } catch (error) {
+      console.error("Error fetching photos from Convex:", error);
+      return [];
+    }
+  },
+  ["photos-list"],
+  { revalidate: 60, tags: ["photos"] }
+);
+
 export async function fetchPhotos(): Promise<Photo[]> {
-  try {
-    const rows = (await fetchQuery(api.photos.list, {})) ?? [];
-    const photos = rows.map(toPhoto);
-    console.log(`Total photos fetched from Convex: ${photos.length}`);
-    return photos;
-  } catch (error) {
-    console.error("Error fetching photos from Convex:", error);
-    return [];
-  }
+  return getCachedPhotos();
 }
 
+const getCachedPhotoBySlug = unstable_cache(
+  async (slug: string): Promise<Photo | null> => {
+    try {
+      const row = await fetchQuery(api.photos.getBySlug, { slug });
+      return row ? toPhoto(row) : null;
+    } catch (error) {
+      console.error("Error fetching photo from Convex:", error);
+      return null;
+    }
+  },
+  ["photo-by-slug"],
+  { revalidate: 60, tags: ["photos"] }
+);
+
 export async function fetchPhotoBySlug(slug: string): Promise<Photo | null> {
-  try {
-    const row = await fetchQuery(api.photos.getBySlug, { slug });
-    return row ? toPhoto(row) : null;
-  } catch (error) {
-    console.error("Error fetching photo from Convex:", error);
-    return null;
-  }
+  return getCachedPhotoBySlug(slug);
 }

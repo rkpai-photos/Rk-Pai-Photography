@@ -6,10 +6,8 @@ import SlideShow from "@/sections/SlideShow";
 import Footer from "@/sections/Footer";
 import { fetchPhotos } from "@/lib/photo";
 
-// ISR: re-render at most once a minute instead of on every request. Cuts the
-// per-request Convex round-trip from the critical path; admin edits surface
-// within ~60s. (Was force-dynamic.)
-export const revalidate = 60;
+// Force dynamic rendering since Convex fetchQuery uses no-store fetch.
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const photos = await fetchPhotos();

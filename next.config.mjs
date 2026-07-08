@@ -2,6 +2,9 @@
 const nextConfig = {
   experimental: {
     imgOptTimeoutInSeconds: 30,
+    staleTimes: {
+      dynamic: 30,
+    },
   },
   images: {
     remotePatterns: [
