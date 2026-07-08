@@ -1,4 +1,4 @@
-import { BookOpen, Box } from "lucide-react";
+import { BookOpen, Box, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 
 import JsonLd from "@/components/JsonLd";
@@ -85,6 +85,14 @@ export default function FeatherFablesLanding() {
               >
                 <BookOpen className="h-4 w-4" /> Read Online
               </TransitionLink>
+              <a
+                href="https://www.amazon.in/dp/9359176419"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-stone-400 px-6 py-3 text-sm font-medium text-stone-800 transition hover:bg-stone-300"
+              >
+                <ShoppingBag className="h-4 w-4" /> Buy Book
+              </a>
             </div>
 
             {/* Kannada edition */}
