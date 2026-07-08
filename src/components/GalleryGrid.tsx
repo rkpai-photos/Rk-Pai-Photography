@@ -29,10 +29,20 @@ interface GalleryGridProps {
   photos: Photo[];
 }
 
+let hasAnimatedGlobal = false;
+
 export default function GalleryGrid({ photos }: GalleryGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (hasAnimatedGlobal) {
+      if (gridRef.current) {
+        const items = gsap.utils.toArray(".gallery-item");
+        gsap.set(items, { opacity: 1, y: 0 });
+      }
+      return;
+    }
+
     const ctx = gsap.context(() => {
       if (gridRef.current) {
         const items = gsap.utils.toArray(".gallery-item");
@@ -46,6 +56,9 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
               stagger: 0.1,
               duration: 0.5,
               ease: "power2.out",
+              onComplete: () => {
+                hasAnimatedGlobal = true;
+              },
               scrollTrigger: {
                 trigger: gridRef.current,
                 start: "top bottom-=100",
@@ -58,7 +71,7 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
       }
     }, gridRef);
     return () => ctx.revert();
-  }, [photos]); // Added photos as dependency to re-run animation when photos change
+  }, [photos]);
 
   const breakpointColumnsObj = {
     default: 4,

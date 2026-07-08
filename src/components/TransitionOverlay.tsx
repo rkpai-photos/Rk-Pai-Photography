@@ -69,20 +69,6 @@ export default function TransitionOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // popstate (browser back/forward): re-close the curtain.
-  useEffect(() => {
-    const onPop = () => {
-      if (isSuppressedPath(window.location.pathname)) return;
-      setState((s) => ({
-        visible: true,
-        transitionId: s.transitionId + 1,
-        startedAt: Date.now(),
-      }));
-    };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [setState]);
-
   if (isSuppressedPath(pathname)) return null;
 
   // Both panels share the same easing and duration; close and open just go in
