@@ -1,6 +1,7 @@
-import { Float, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
+import debounce from "lodash/debounce";
 import { Book } from "./Book";
 
 export const Experience = () => {
@@ -22,20 +23,22 @@ export const Experience = () => {
     };
 
     updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    const onResize = debounce(updateScale, 150);
+    window.addEventListener("resize", onResize);
+    return () => {
+      onResize.cancel();
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return (
     <>
-      <Float
-        rotateX={viewport.width < 768 ? -Math.PI / 3 : -Math.PI / 4}
-        floatIntensity={viewport.width < 768 ? 0.5 : 1}
-        speed={2}
-        rotationIntensity={viewport.width < 768 ? 1 : 2}
-      >
+      {/* Static, near-upright tilt — the drei <Float> bob/rotation was too much
+          motion, and a steep lay-back hid the cover. A gentle tilt keeps the
+          cover facing the camera; OrbitControls still lets the user turn it. */}
+      <group rotation-x={viewport.width < 768 ? -Math.PI / 5 : -Math.PI / 7}>
         <Book scale={bookScale} />
-      </Float>
+      </group>
       <OrbitControls
         enableZoom={true}
         enablePan={true}
@@ -43,7 +46,19 @@ export const Experience = () => {
         maxDistance={20}
         minDistance={2}
       />
-      <ambientLight intensity={4.3} />
+      {/* Soft fill + a directional key light. The old single ambientLight=4.3
+          washed the cream pages to white (lifting the near-black text to gray,
+          so it read low-contrast) and, being pure ambient, gave the book no
+          shading so it looked flat. Lower fill keeps text crisp; the key light
+          adds the gradient that makes the book pop and drives the floor shadow. */}
+      <ambientLight intensity={0.9} />
+      <directionalLight
+        position={[2.5, 5, 4]}
+        intensity={2.4}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0004}
+      />
       <mesh position-y={-1.5} rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[100, 100]} />
         <shadowMaterial transparent opacity={0.2} />

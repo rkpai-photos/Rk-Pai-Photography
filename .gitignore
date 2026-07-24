@@ -32,6 +32,25 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Large book masters — render to /public/books via scripts/render-book.sh; the
+# 562MB PDF and the generated web PDF must never be committed (Git/Vercel limits).
+/public/Feather_Fables_Life_Essays.pdf
+/feather-fables-web.pdf
+
+# Full-res landscape/travel source JPEGs (181MB). These are optimized and
+# uploaded to Convex by scripts/import-landscape.mjs; the app reads from Convex,
+# so the originals must never be committed.
+/public/landscape/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent / AI-tooling scaffolding (local, not part of the project)
+.agents/
+.claude/
+.superpowers/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+.gstack/

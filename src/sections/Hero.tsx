@@ -14,7 +14,14 @@ const Hero: FC = () => {
   const scrollingDivRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (imageRef.current && scrollingDivRef.current) {
+    // Desktop only: the image-grow scrub needs the 100vh spacer below to drive
+    // it. On mobile the image is locked to full width (max-md:!w-full) and the
+    // spacer collapses (md:h-[100vh]), so there's nothing to animate — gating
+    // with matchMedia avoids attaching a ScrollTrigger to a 0-height trigger and
+    // cleans the animation up automatically when crossing the breakpoint.
+    const mm = gsap.matchMedia();
+    mm.add("(min-width: 768px)", () => {
+      if (!imageRef.current || !scrollingDivRef.current) return;
       gsap.to(imageRef.current, {
         width: "240%",
         ease: "none",
@@ -25,7 +32,8 @@ const Hero: FC = () => {
           scrub: 0.5,
         },
       });
-    }
+    });
+    return () => mm.revert();
   }, []);
 
   return (
@@ -105,16 +113,22 @@ const Hero: FC = () => {
             className="mt-20 md:mt-0 md:size-full md:absolute md:right-0 max-md:!w-full "
           >
             <Image
-              src="/images/bird3.jpg"
+              src="/b.webp"
               alt="bird"
               width={1600}
               height={1228}
+              priority
+              // The hero image is the LCP element (and on desktop it scrubs up to
+              // ~100vw wide). priority drops the default lazy load; sizes lets
+              // mobile — where there's no zoom — fetch a ~640w candidate instead
+              // of the 1920w one next/image picks with no sizes hint.
+              sizes="100vw"
               className="size-full object-cover "
             />
           </div>
         </div>
       </div>
-      <div className="h-[100vh]" ref={scrollingDivRef}></div>
+      <div className="md:h-[100vh]" ref={scrollingDivRef}></div>
     </section>
   );
 };

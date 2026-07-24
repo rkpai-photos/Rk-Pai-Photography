@@ -1,4 +1,3 @@
-/* eslint-disable */
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -12,6 +11,8 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: "var(--font-archivo)",
+        playfair: ["var(--font-playfair)", "Georgia", "serif"],
+        lora: ["var(--font-lora)", "Georgia", "serif"],
       },
       container: {
         center: true,
@@ -25,6 +26,7 @@ const config: Config = {
         "red-orange": {
           "500": "#FF3F34",
         },
+        parchment: "#f5f1e8", // warm book/reader background (Feather Fables)
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

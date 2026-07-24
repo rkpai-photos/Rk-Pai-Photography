@@ -65,6 +65,7 @@ const useMorphingText = (texts: string[]) => {
 
   useEffect(() => {
     let animationFrameId: number;
+    let running = false;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
@@ -79,9 +80,37 @@ const useMorphingText = (texts: string[]) => {
       else doCooldown();
     };
 
-    animate();
-    return () => {
+    // Only run the per-frame morph (which writes blur/opacity through an SVG
+    // filter — expensive repaints) while the text is actually on screen.
+    // Off-screen it's pure wasted main-thread + GPU work, and this heading sits
+    // in a section users scroll well past. Resetting the clock on resume avoids
+    // a giant dt catch-up jump after the pause.
+    const start = () => {
+      if (running) return;
+      running = true;
+      timeRef.current = new Date();
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    const stop = () => {
+      running = false;
       cancelAnimationFrame(animationFrameId);
+    };
+
+    const el = text1Ref.current?.parentElement ?? null;
+    let observer: IntersectionObserver | null = null;
+    if (el && typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        ([entry]) => (entry.isIntersecting ? start() : stop()),
+        { rootMargin: "120px" },
+      );
+      observer.observe(el);
+    } else {
+      start();
+    }
+
+    return () => {
+      stop();
+      observer?.disconnect();
     };
   }, [doMorph, doCooldown]);
 

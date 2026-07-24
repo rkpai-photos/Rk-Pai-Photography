@@ -1,12 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    imgOptTimeoutInSeconds: 30,
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
   images: {
-    domains: ["scv4alvjgyc18iwi.public.blob.vercel-storage.com"],
     remotePatterns: [
+      // Convex File Storage — photos uploaded via /admin or the import script.
+      { protocol: "https", hostname: "*.convex.cloud" },
+      // Legacy hosts kept so any old image_url that still points here keeps working.
       {
         protocol: "https",
-        hostname: "*.edgestore.dev", // This will match any subdomain of edgestore.dev
+        hostname: "scv4alvjgyc18iwi.public.blob.vercel-storage.com",
       },
+      { protocol: "https", hostname: "*.edgestore.dev" },
     ],
   },
 };

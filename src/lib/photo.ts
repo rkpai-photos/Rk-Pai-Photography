@@ -1,6 +1,16 @@
-/* eslint-disable */
 // @ts-nocheck
-import { fetchFromGoogleSheet } from "./googleSheets";
+//
+// Photo data layer. Backed by Convex (the `photos` table — see convex/schema.ts).
+// Replaced the old Google Sheets reader. The returned shape is intentionally the
+// same `Photo` object the components already consume (id / src / image_url /
+// width / height / story / createdAt / created_at / imageType / image_type),
+// so nothing downstream had to change.
+//
+// NOTE: `api` comes from convex/_generated/, which only exists after you've run
+// `npx convex dev` once. Run that before `next build` / `next dev`.
+import { fetchQuery } from "convex/nextjs";
+import { api } from "../../convex/_generated/api";
+import { unstable_cache } from "next/cache";
 
 export interface Photo {
   id: string;
@@ -11,37 +21,68 @@ export interface Photo {
   created_at: string;
   image_type: string;
   image_url: string;
+  // synthesized convenience fields used by components
+  src: string;
+  createdAt: string;
+  imageType: string;
+  location?: string;
+  // LQIP for next/image's blur placeholder (undefined for legacy rows).
+  blurDataURL?: string;
 }
 
+function toPhoto(row: any): Photo {
+  const url = row.imageUrl ?? "";
+  return {
+    id: row.slug ?? "",
+    src: url,
+    image_url: url,
+    alt: row.alt ?? "",
+    width: row.width || 300,
+    height: row.height || 200,
+    story: row.story ?? "",
+    createdAt: row.createdAt ?? new Date().toISOString(),
+    created_at: row.createdAt ?? "",
+    imageType: row.imageType ?? "jpeg",
+    image_type: row.imageType ?? "jpeg",
+    location: row.location,
+    blurDataURL: row.blurDataURL,
+  };
+}
+
+const getCachedPhotos = unstable_cache(
+  async (): Promise<Photo[]> => {
+    try {
+      const rows = (await fetchQuery(api.photos.list, {})) ?? [];
+      const photos = rows.map(toPhoto);
+      console.log(`Total photos fetched from Convex: ${photos.length}`);
+      return photos;
+    } catch (error) {
+      console.error("Error fetching photos from Convex:", error);
+      return [];
+    }
+  },
+  ["photos-list"],
+  { revalidate: 60, tags: ["photos"] }
+);
+
 export async function fetchPhotos(): Promise<Photo[]> {
-  try {
-    // Fetch raw data from Google Sheets
-    const rawPhotos = await fetchFromGoogleSheet();
+  return getCachedPhotos();
+}
 
-    // Process the photos to ensure proper types and structure
-    const processedPhotos = rawPhotos.map((item) => {
-      return {
-        id: item.id || "",
-        src: item.image_url, // Use image_url as src for component compatibility
-        alt: item.alt || "",
-        width: parseInt(item.width) || 300,
-        height: parseInt(item.height) || 200,
-        story: item.story || "",
-        createdAt: item.created_at || new Date().toISOString(),
-        imageType: item.image_type || "jpeg",
-        // Keep original fields for reference
-        image_url: item.image_url,
-        image_type: item.image_type,
-        created_at: item.created_at,
-      };
-    });
+const getCachedPhotoBySlug = unstable_cache(
+  async (slug: string): Promise<Photo | null> => {
+    try {
+      const row = await fetchQuery(api.photos.getBySlug, { slug });
+      return row ? toPhoto(row) : null;
+    } catch (error) {
+      console.error("Error fetching photo from Convex:", error);
+      return null;
+    }
+  },
+  ["photo-by-slug"],
+  { revalidate: 60, tags: ["photos"] }
+);
 
-    console.log(
-      `Total photos fetched from Google Sheets: ${processedPhotos.length}`,
-    );
-    return processedPhotos;
-  } catch (error) {
-    console.error("Error fetching photos from Google Sheets:", error);
-    return [];
-  }
+export async function fetchPhotoBySlug(slug: string): Promise<Photo | null> {
+  return getCachedPhotoBySlug(slug);
 }

@@ -2,11 +2,12 @@
 "use client";
 import { FC, useState, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import bird from "@/assets/images/rkpai1.png";
 import { motion, useAnimate, AnimatePresence } from "framer-motion";
 import { ImageIcon } from "lucide-react";
+import TransitionLink from "@/components/TransitionLink";
+import { useStartPageTransition } from "@/components/page-transition";
 
 const navItems = [
   {
@@ -25,19 +26,26 @@ const navItems = [
     isExternal: false,
   },
   {
+    label: "Book",
+    href: "/feather-fables",
+    isExternal: false,
+  },
+  {
     label: "Recent Stories",
-    href: "#projects",
+    href: "/#projects",
     isExternal: false,
   },
   {
     label: "Contact",
     href: "mailto:rkpaiin@gmail.com",
-    isExternal: false,
+    isExternal: true,
   },
 ];
 
 const Header: FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const startPageTransition = useStartPageTransition();
   const [isOpen, setIsOpen] = useState(false);
   const [navScope, navAnimate] = useAnimate();
 
@@ -66,20 +74,32 @@ const Header: FC = () => {
   const handleNavigation = (href: string, isExternal: boolean) => {
     setIsOpen(false);
 
-    if (isExternal) {
+    // Protocol links (mailto:/tel:) and anything flagged external: hand off to the browser.
+    if (isExternal || href.startsWith("mailto:") || href.startsWith("tel:")) {
       window.location.href = href;
       return;
     }
 
+    // Home-page section anchors ("/#intro", "/#projects", …). This Header is
+    // mounted on every public page now, not just "/", so the target element may
+    // not exist on the current page — if we're already home, smooth-scroll to it;
+    // otherwise navigate to "/#…" and let the browser scroll to the section.
     if (href.startsWith("/#")) {
-      const elementId = href.split("#")[1];
-      const element = document.getElementById(elementId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+      const elementId = href.slice(2);
+      if (pathname === "/") {
+        document
+          .getElementById(elementId)
+          ?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        window.location.href = href;
       }
-    } else {
-      router.push(href);
+      return;
     }
+
+    // Plain in-app routes ("/stories", "/album", …). Show the loader first so
+    // it's already painted when the new route's data fetch / mount begins.
+    startPageTransition(href);
+    router.push(href);
   };
 
   const menuItemVariants = {
@@ -94,15 +114,6 @@ const Header: FC = () => {
       },
     }),
   };
-
-  const Line = (props: any) => (
-    <motion.line
-      strokeWidth="2"
-      stroke="currentColor"
-      strokeLinecap="round"
-      {...props}
-    />
-  );
 
   return (
     <header className="fixed top-0 left-0 w-full z-50">
@@ -156,7 +167,7 @@ const Header: FC = () => {
       >
         <div className="flex justify-between h-28 items-center">
           <div className="relative z-50">
-            <Link href="/">
+            <TransitionLink href="/">
               <Image
                 src={bird}
                 alt="Logo"
@@ -167,7 +178,7 @@ const Header: FC = () => {
                   isOpen ? "invert brightness-0" : ""
                 }`}
               />
-            </Link>
+            </TransitionLink>
           </div>
 
           <div className="flex items-center gap-4">
@@ -179,35 +190,29 @@ const Header: FC = () => {
               }`}
               onClick={() => setIsOpen(!isOpen)}
               aria-label="Toggle menu"
+              aria-expanded={isOpen}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <Line
-                  x1="4"
-                  y1="8"
-                  x2="20"
-                  y2="8"
-                  variants={{
-                    closed: { rotate: 0, translateY: 0 },
-                    open: { rotate: 45, translateY: 6 },
-                  }}
-                  animate={isOpen ? "open" : "closed"}
-                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                  transformOrigin="center"
+              {/* Hamburger ⇄ X — two CSS-transformed bars. HTML elements rotate
+                  around their own centre in every browser/build mode; an SVG
+                  <line>'s transform-origin does not (it defaults to the SVG
+                  view-box), which is why the old <motion.line> version didn't
+                  form an X on the deployed site. */}
+              <span className="relative block h-4 w-5">
+                <span
+                  className={`absolute left-0 top-[2px] block h-0.5 w-5 rounded-full transition-all duration-[400ms] ease-in-out ${
+                    isOpen
+                      ? "translate-y-[5px] rotate-45 bg-stone-200"
+                      : "bg-stone-900"
+                  }`}
                 />
-                <Line
-                  x1="4"
-                  y1="16"
-                  x2="20"
-                  y2="16"
-                  variants={{
-                    closed: { rotate: 0, translateY: 0 },
-                    open: { rotate: -45, translateY: -2 },
-                  }}
-                  animate={isOpen ? "open" : "closed"}
-                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                  transformOrigin="center"
+                <span
+                  className={`absolute bottom-[2px] left-0 block h-0.5 w-5 rounded-full transition-all duration-[400ms] ease-in-out ${
+                    isOpen
+                      ? "-translate-y-[5px] -rotate-45 bg-stone-200"
+                      : "bg-stone-900"
+                  }`}
                 />
-              </svg>
+              </span>
             </button>
             <button
               className={`hidden md:inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium 

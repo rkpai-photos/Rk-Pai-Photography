@@ -1,6 +1,22 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Archivo } from "next/font/google";
+import { Archivo, Playfair_Display, Lora } from "next/font/google";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
+
+import ConvexClientProvider from "@/components/ConvexClientProvider";
+import JsonLd from "@/components/JsonLd";
+import TransitionOverlay from "@/components/TransitionOverlay";
+import {
+  defaultDescription,
+  defaultKeywords,
+  defaultTitle,
+  person,
+  siteLanguage,
+  siteLocale,
+  siteName,
+  siteUrl,
+  titleTemplate,
+} from "@/lib/site";
 
 const archivo = Archivo({
   display: "swap",
@@ -9,10 +25,82 @@ const archivo = Archivo({
   variable: "--font-archivo",
 });
 
+// Display serif used by <TransitionOverlay>'s wordmark and by the
+// `font-playfair` class scattered through stories/[id]/page.tsx (which until
+// now resolved to nothing — see CONTEXT.md §11). Loaded with display:swap so
+// the curtain doesn't FOIT; metric-compatible fallback is auto-generated.
+const playfair = Playfair_Display({
+  display: "swap",
+  weight: ["400", "700", "800"],
+  subsets: ["latin"],
+  variable: "--font-playfair",
+});
+
+// Warm humanist serif for long-form reading — the bird-essay body on
+// stories/[id]. Pairs with Playfair (display) for an editorial nature-journal
+// feel and is far more legible than a bold-italic sans wall for 300-word reads.
+const lora = Lora({
+  display: "swap",
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-lora",
+});
+
+// Site-wide SEO defaults. Every page inherits these and overrides only what
+// differs (mostly title + description). `metadataBase` is the anchor that
+// resolves every relative URL in `openGraph.images`, `alternates.canonical`,
+// `manifest`, etc. — without it, social previews break.
 export const metadata: Metadata = {
-  title: "Rk Pai Photography",
-  description:
-    "Immerse yourself in the beauty of the wildlife through breathtaking photography. Each image tells a story, celebrating the raw power, grace, and spirit of wildlife across the globe.",
+  metadataBase: new URL(siteUrl),
+  title: { default: defaultTitle, template: titleTemplate },
+  description: defaultDescription,
+  applicationName: siteName,
+  authors: [{ name: person.name, url: person.url }],
+  creator: person.name,
+  publisher: person.name,
+  keywords: defaultKeywords,
+  category: "photography",
+  alternates: { canonical: "/" },
+  // Explicit icon declarations so Google's favicon crawler sees more than just
+  // /favicon.ico (which tops out at the 48×48 frame — Google's minimum, not
+  // its preferred size). The 192×192 PNG is the size Google's documentation
+  // specifically recommends for SERP favicons. The /apple-icon.png file
+  // convention would still wire this up on its own, but listing all icons in
+  // one place keeps the SEO surface auditable.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+  },
+  openGraph: {
+    type: "website",
+    siteName,
+    locale: siteLocale,
+    url: siteUrl,
+    title: defaultTitle,
+    description: defaultDescription,
+    // images default to /opengraph-image — auto-wired from app/opengraph-image.tsx.
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultTitle,
+    description: defaultDescription,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -20,16 +108,36 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Site-level JSON-LD: a WebSite that names the Person who runs it. Inlined in
+  // every page; payload is < 1 KB. Per-page schemas (CollectionPage on /stories,
+  // Photograph on /stories/[id]) are injected by those pages on top.
+  const siteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: siteName,
+    url: siteUrl,
+    description: defaultDescription,
+    inLanguage: siteLanguage,
+    author: person,
+    publisher: person,
+    copyrightHolder: person,
+  };
+
   return (
-    <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" />
-      </head>
-      <body
-        className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} font-sans`}
-      >
-        {children}
-      </body>
-    </html>
+    <ConvexAuthNextjsServerProvider>
+      <html lang="en">
+        <body
+          className={`antialiased bg-stone-200 text-stone-900 ${archivo.variable} ${playfair.variable} ${lora.variable} font-sans`}
+        >
+          <JsonLd data={siteJsonLd} />
+          <ConvexClientProvider>{children}</ConvexClientProvider>
+          {/* Page-transition loader. SSR'd visible on cold loads, fades out
+              once the first page's critical images are decoded; <TransitionLink>
+              + useStartPageTransition trigger it on in-app navs. Suppresses
+              itself on /admin*. */}
+          <TransitionOverlay />
+        </body>
+      </html>
+    </ConvexAuthNextjsServerProvider>
   );
 }

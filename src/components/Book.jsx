@@ -21,9 +21,11 @@ import {
 } from "three";
 import { degToRad } from "three/src/math/MathUtils.js";
 
-// Constants
-const PAGE_WIDTH = 1.28;
-const PAGE_HEIGHT = 1.71;
+// Constants — pages are 3:2 landscape (1.71 × 1.14) to match the wildlife/DSLR
+// photo aspect of the bird plates. Width is held at 1.71 (keeps the skin-index
+// edge guard below valid and the camera framing in Experience.jsx unchanged).
+const PAGE_WIDTH = 1.71;
+const PAGE_HEIGHT = 1.14;
 const PAGE_DEPTH = 0.003;
 const PAGE_SEGMENTS = 30;
 const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
@@ -32,43 +34,27 @@ const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
 import { atom } from "jotai";
 export const pageAtom = atom(0);
 
-// Define pictures array
-const pictures = [
-  "bird2",
-  "bird3",
-  "bird4",
-  "bird5",
-  "bird6",
-  "bird7",
-  "bird8",
-  "bird9",
-  "bird10",
-  "bird11",
-  "bird12",
-  "bird13",
-  "bird14",
-  "bird15",
-];
-
-// Define pages array
-export const pages = [
-  {
-    front: "book-cover",
-    back: pictures[0],
-  },
-];
-
-for (let i = 1; i < pictures.length - 1; i += 2) {
-  pages.push({
-    front: pictures[i % pictures.length],
-    back: pictures[(i + 1) % pictures.length],
-  });
+// Album interior plates — all 55 bird/wildlife photos from the printed book, in
+// reading order, blur-extended to the 3:2 page (built by
+// scripts/convert-textures.sh from ~/feather-fables/images into
+// /public/textures/album as b01..b55.webp). Keep BIRD_COUNT in sync with the
+// `birds` list in that script.
+const BIRD_COUNT = 55;
+const pictures = [];
+for (let i = 1; i <= BIRD_COUNT; i++) {
+  pictures.push(`b${String(i).padStart(2, "0")}`);
 }
 
-pages.push({
-  front: pictures[pictures.length - 1],
-  back: "book-back",
-});
+// Faces in reading order: front cover, the 55 plates, a cream endpaper, then the
+// back cover. The endpaper pads the count to even (58 faces = 29 leaves) so
+// every leaf has a front and a back and the back cover stays the outermost face.
+const faces = ["cover", ...pictures, "blank", "back"];
+
+// Pair consecutive faces into physical leaves.
+export const pages = [];
+for (let i = 0; i < faces.length; i += 2) {
+  pages.push({ front: faces[i], back: faces[i + 1] });
+}
 
 // Create page geometry
 const pageGeometry = new BoxGeometry(
@@ -89,8 +75,29 @@ const skinWeights = [];
 for (let i = 0; i < position.count; i++) {
   vertex.fromBufferAttribute(position, i);
   const x = vertex.x;
-  const skinIndex = Math.max(0, Math.floor(x / SEGMENT_WIDTH));
-  let skinWeight = (x % SEGMENT_WIDTH) / SEGMENT_WIDTH;
+  // Each vertex blends between bones[skinIndex] and bones[skinIndex+1]. There
+  // are PAGE_SEGMENTS+1 bones total (indices 0..PAGE_SEGMENTS), so skinIndex+1
+  // must be ≤ PAGE_SEGMENTS — i.e. skinIndex ≤ PAGE_SEGMENTS-1. At the far
+  // edge of the page (x ≈ PAGE_WIDTH), Math.floor(x / SEGMENT_WIDTH) can land
+  // exactly on PAGE_SEGMENTS depending on floating-point rounding of the
+  // division (1.71/30 rounds *up* at the edge; the old 1.28/30 happened to
+  // round down, which is why this latent bug only surfaced after the 3:4 →
+  // 3:2 dimension change). The crash was "skeleton.bones[boneIndex] is
+  // undefined" inside Three's SkinnedMesh update.
+  const rawIdx = Math.floor(x / SEGMENT_WIDTH);
+  let skinIndex;
+  let skinWeight;
+  if (rawIdx >= PAGE_SEGMENTS) {
+    // Past the last bone — snap the vertex to bone PAGE_SEGMENTS.
+    skinIndex = PAGE_SEGMENTS - 1;
+    skinWeight = 1;
+  } else if (rawIdx < 0) {
+    skinIndex = 0;
+    skinWeight = 0;
+  } else {
+    skinIndex = rawIdx;
+    skinWeight = (x % SEGMENT_WIDTH) / SEGMENT_WIDTH;
+  }
   skinIndexes.push(skinIndex, skinIndex + 1, 0, 0);
   skinWeights.push(1 - skinWeight, skinWeight, 0, 0);
 }
@@ -124,21 +131,16 @@ const turningCurveStrength = 0.09;
 
 // Page Component
 const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
-  const frontTexturePath =
-    front === "book-cover.png"
-      ? `/textures/${front}`
-      : `/textures/${front}.jpg`;
-
-  const [picture, picture2, pictureRoughness] = useTexture([
-    frontTexturePath,
-    `/textures/${back}.jpg`,
-    ...(number === 0 || number === pages.length - 1
-      ? [`/textures/bookrough.png`]
-      : []),
+  // Bird-plate textures (see scripts/convert-textures.sh) are pre-processed to
+  // the 3:2 page aspect, so they map without stretching. No roughness map — it
+  // gave both covers a patchy, uneven sheen; a plain matte finish lights evenly.
+  const [picture, picture2] = useTexture([
+    `/textures/album/${front}.webp`,
+    `/textures/album/${back}.webp`,
   ]);
 
   picture.colorSpace = picture2.colorSpace = SRGBColorSpace;
-  picture.flipY = front === "book-cover.png" ? false : true;
+  picture.flipY = picture2.flipY = true;
 
   const group = useRef();
   const turnedAt = useRef(0);
@@ -166,18 +168,17 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       new MeshStandardMaterial({
         color: whiteColor,
         map: picture,
-        ...(number === 0
-          ? { roughnessMap: pictureRoughness }
-          : { roughness: 0.1 }),
+        // Front cover gets a plain matte finish (no roughness-map texture);
+        // interior pages stay slightly glossier.
+        roughness: number === 0 ? 0.6 : 0.1,
         emissive: emissiveColor,
         emissiveIntensity: 0,
       }),
       new MeshStandardMaterial({
         color: whiteColor,
         map: picture2,
-        ...(number === pages.length - 1
-          ? { roughnessMap: pictureRoughness }
-          : { roughness: 0.1 }),
+        // Back cover gets the same plain matte finish as the front cover.
+        roughness: number === pages.length - 1 ? 0.6 : 0.1,
         emissive: emissiveColor,
         emissiveIntensity: 0,
       }),

@@ -1,11 +1,13 @@
 import { FC } from "react";
-import Image from "next/image";
+import ProtectedImage from "@/components/ProtectedImage";
+import TransitionLink from "@/components/TransitionLink";
 
 interface ProjectProps {
   projects: {
     id: string;
     src: string;
     alt: string;
+    blurDataURL?: string;
   }[];
 }
 
@@ -15,8 +17,8 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
       <div className="container">
         <h1 className="text-4xl md:text-7xl lg:text-8xl">My Recent Stories.</h1>
         <div className="mt-10 md:mt-16 lg:mt-20">
-          {projects.map(({ id, src, alt }) => (
-            <a
+          {projects.map(({ id, src, alt, blurDataURL }) => (
+            <TransitionLink
               href={`/stories/${id}`}
               key={id}
               className="border-t last:border-b border-stone-400 border-dotted py-6 md:py-8 lg:py-10 flex flex-col relative group/project"
@@ -25,12 +27,15 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
               
               <div className="relative">
                 <div className="aspect-video md:hidden">
-                  <Image
+                  <ProtectedImage
                     src={src}
                     alt={alt}
                     className="w-full"
-                    width={600} 
-                    height={400} 
+                    width={600}
+                    height={400}
+                    sizes="100vw"
+                    placeholder={blurDataURL ? "blur" : "empty"}
+                    blurDataURL={blurDataURL}
                   />
                 </div>
 
@@ -41,12 +46,15 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
 
                   <div className="relative">
                     <div className="absolute aspect-video w-full top-1/2 -translate-y-1/2 opacity-0 scale-90 group-hover/project:opacity-100 group-hover/project:scale-100 lg:group-hover/project:scale-110 transition-all duration-500 z-10">
-                      <Image
+                      <ProtectedImage
                         src={src}
                         alt={alt}
                         className="w-full"
-                        width={600} 
-                        height={400} 
+                        width={600}
+                        height={400}
+                        sizes="300px"
+                        placeholder={blurDataURL ? "blur" : "empty"}
+                        blurDataURL={blurDataURL}
                       />
                     </div>
                   </div>
@@ -73,7 +81,7 @@ const Projects: FC<ProjectProps> = ({ projects }) => {
                   </div>
                 </div>
               </div>
-            </a>
+            </TransitionLink>
           ))}
         </div>
       </div>

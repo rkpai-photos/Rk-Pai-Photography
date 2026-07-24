@@ -1,9 +1,8 @@
-/* eslint-disable */
 // @ts-nocheck
 "use client";
 import { useEffect, useRef } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import Link from "@/components/TransitionLink";
+import ProtectedImage from "@/components/ProtectedImage";
 import Masonry from "react-masonry-css";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -23,16 +22,27 @@ interface Photo {
   image_type?: string;
   created_at?: string;
   createdAt?: string; // Processed field from fetchPhotos
+  blurDataURL?: string; // LQIP placeholder
 }
 
 interface GalleryGridProps {
   photos: Photo[];
 }
 
+let hasAnimatedGlobal = false;
+
 export default function GalleryGrid({ photos }: GalleryGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (hasAnimatedGlobal) {
+      if (gridRef.current) {
+        const items = gsap.utils.toArray(".gallery-item");
+        gsap.set(items, { opacity: 1, y: 0 });
+      }
+      return;
+    }
+
     const ctx = gsap.context(() => {
       if (gridRef.current) {
         const items = gsap.utils.toArray(".gallery-item");
@@ -46,6 +56,9 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
               stagger: 0.1,
               duration: 0.5,
               ease: "power2.out",
+              onComplete: () => {
+                hasAnimatedGlobal = true;
+              },
               scrollTrigger: {
                 trigger: gridRef.current,
                 start: "top bottom-=100",
@@ -58,7 +71,7 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
       }
     }, gridRef);
     return () => ctx.revert();
-  }, [photos]); // Added photos as dependency to re-run animation when photos change
+  }, [photos]);
 
   const breakpointColumnsObj = {
     default: 4,
@@ -101,11 +114,18 @@ export default function GalleryGrid({ photos }: GalleryGridProps) {
               className="block mb-4 gallery-item"
             >
               <div className="relative overflow-hidden rounded-lg shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105">
-                <Image
+                <ProtectedImage
                   src={imageUrl}
                   alt={photo.alt || "Photography"}
                   width={parseInt(String(photo.width)) || 800}
                   height={parseInt(String(photo.height)) || 600}
+                  // Matches the masonry column counts (4/3/2/1) so Next serves
+                  // appropriately-sized bytes instead of a full-width variant.
+                  sizes="(max-width: 500px) 100vw, (max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw"
+                  // LQIP: show the blurred preview instantly, cross-fade to the
+                  // real image. Falls back to no placeholder for legacy rows.
+                  placeholder={photo.blurDataURL ? "blur" : "empty"}
+                  blurDataURL={photo.blurDataURL}
                   className="w-full h-auto object-cover"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-50 transition-all duration-300 flex flex-col items-center justify-center">

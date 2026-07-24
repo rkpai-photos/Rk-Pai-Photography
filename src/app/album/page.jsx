@@ -1,10 +1,12 @@
-/* eslint-disable */
 // @ts-nocheck
 "use client";
 import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useState } from "react";
+import debounce from "lodash/debounce";
 import { Experience } from "../../components/Experience";
 import { UI } from "../../components/UI";
+import AlbumLoader from "../../components/AlbumLoader";
+import Header from "@/sections/Header";
 
 function App() {
   const [cameraPosition, setCameraPosition] = useState([-0.5, 1, 4]);
@@ -26,16 +28,21 @@ function App() {
     };
 
     handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const onResize = debounce(handleResize, 150);
+    window.addEventListener("resize", onResize);
+    return () => {
+      onResize.cancel();
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-slate-800">
+    <div className="relative min-h-screen overflow-hidden bg-stone-200">
+      <div className="absolute inset-0 bg-stone-200">
         <div className="absolute inset-0 " />
       </div>
 
+      <Header />
       <UI />
 
       <div className="absolute inset-0">
@@ -54,6 +61,8 @@ function App() {
           </Suspense>
         </Canvas>
       </div>
+
+      <AlbumLoader />
     </div>
   );
 }
